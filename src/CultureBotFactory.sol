@@ -5,11 +5,11 @@ import "@openzeppelin/contracts/utils/Context.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import "./BancorFormula/BancorFormula.sol";
-import {TokenBoilerPlate} from "src/ClickerBotDeployer.sol";
+import {CultureBotBoilerPlate} from "src/CultureBotBoilerPlate.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract CultureBotFactory is Context {
-    TokenBoilerPlate tokenBoilerPlate;
+    CultureBotBoilerPlate tokenBoilerPlate;
     BancorFormula bancorFormulaContract;
 
     // Reserve token. Should be a stable coin. For convenience, we'll assume USDC
@@ -51,7 +51,7 @@ contract CultureBotFactory is Context {
         uint256[] memory allocationAmount
     ) public payable {
         address newToken = address(
-            new TokenBoilerPlate(
+            new CultureBotBoilerPlate(
                 name_,
                 symbol_,
                 deployer_,
@@ -96,7 +96,7 @@ contract CultureBotFactory is Context {
         address tokenAddy = communityToToken[communityId];
         return
             (address(this).balance /
-                TokenBoilerPlate(tokenAddy).totalSupply()) *
+                CultureBotBoilerPlate(tokenAddy).totalSupply()) *
             (1000000 / reserveWeight());
     }
 
@@ -115,7 +115,7 @@ contract CultureBotFactory is Context {
             reserveWeight(),
             deposit
         );
-        TokenBoilerPlate(tokenAddy).tokenMint(amount);
+        CultureBotBoilerPlate(tokenAddy).tokenMint(amount);
         // Add `try / catch` statement for smoother error handling
         IERC20(r_token).transferFrom(msg.sender, address(this), deposit);
         emit Mint(msg.sender, amount);
@@ -130,21 +130,21 @@ contract CultureBotFactory is Context {
     ) external payable virtual {
         address tokenAddy = communityToToken[communityId];
         require(
-            TokenBoilerPlate(tokenAddy).totalSupply() - amount > 0,
+            CultureBotBoilerPlate(tokenAddy).totalSupply() - amount > 0,
             "BancorContinuousToken: Requested Retire Amount Exceeds Supply"
         );
         require(
-            amount <= TokenBoilerPlate(tokenAddy).balanceOf(_msgSender()),
+            amount <= CultureBotBoilerPlate(tokenAddy).balanceOf(_msgSender()),
             "BancorContinuousToken: Requested Retire Amount Exceeds Owned"
         );
         uint256 liquidity = bancorFormulaContract.saleTargetAmount(
-            TokenBoilerPlate(tokenAddy).totalSupply(),
+            CultureBotBoilerPlate(tokenAddy).totalSupply(),
             reserveBalance(),
             reserveWeight(),
             amount
         );
         IERC20(r_token).transfer(msg.sender, liquidity);
-        TokenBoilerPlate(tokenAddy).tokenBurn(amount);
+        CultureBotBoilerPlate(tokenAddy).tokenBurn(amount);
         emit Retire(_msgSender(), amount, liquidity);
     }
 
@@ -158,7 +158,7 @@ contract CultureBotFactory is Context {
         address tokenAddy = communityToToken[communityId];
         return
             bancorFormulaContract.purchaseCost(
-                TokenBoilerPlate(tokenAddy).totalSupply(),
+                CultureBotBoilerPlate(tokenAddy).totalSupply(),
                 reserveBalance(),
                 reserveWeight(),
                 amount
@@ -175,7 +175,7 @@ contract CultureBotFactory is Context {
         address tokenAddy = communityToToken[communityId];
         return
             bancorFormulaContract.purchaseTargetAmount(
-                TokenBoilerPlate(tokenAddy).totalSupply(),
+                CultureBotBoilerPlate(tokenAddy).totalSupply(),
                 reserveBalance(),
                 reserveWeight(),
                 deposit
@@ -191,12 +191,12 @@ contract CultureBotFactory is Context {
     ) public view virtual returns (uint256) {
         address tokenAddy = communityToToken[communityId];
         require(
-            TokenBoilerPlate(tokenAddy).totalSupply() - amount > 0,
+            CultureBotBoilerPlate(tokenAddy).totalSupply() - amount > 0,
             "BancorContinuousToken: Requested Retire Amount Exceeds Supply"
         );
         return
             bancorFormulaContract.saleTargetAmount(
-                TokenBoilerPlate(tokenAddy).totalSupply(),
+                CultureBotBoilerPlate(tokenAddy).totalSupply(),
                 reserveBalance(),
                 reserveWeight(),
                 amount
