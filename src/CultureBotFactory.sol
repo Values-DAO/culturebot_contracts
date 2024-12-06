@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/utils/Context.sol";
@@ -8,8 +8,7 @@ import "./BancorFormula/BancorFormula.sol";
 import {TokenBoilerPlate} from "src/ClickerBotDeployer.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-/// @title BancorContinuousToken
-contract BancorContinuousToken is Context {
+contract CultureBotFactory is Context {
     TokenBoilerPlate tokenBoilerPlate;
     BancorFormula bancorFormulaContract;
 
@@ -144,7 +143,7 @@ contract BancorContinuousToken is Context {
             reserveWeight(),
             amount
         );
-        TokenBoilerPlate(r_token).transfer(msg.sender, liquidity);
+        IERC20(r_token).transfer(msg.sender, liquidity);
         TokenBoilerPlate(tokenAddy).tokenBurn(amount);
         emit Retire(_msgSender(), amount, liquidity);
     }

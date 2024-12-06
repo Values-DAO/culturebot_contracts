@@ -7,13 +7,13 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {BitMaps} from "@openzeppelin/contracts/utils/structs/BitMaps.sol";
 import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 
-contract TokenBoilerPlate is ERC20, Ownable {
+contract CultureBotBoilerPlate is ERC20, Ownable {
     string private _name;
     string private _symbol;
     uint8 private immutable _decimals;
     uint256 public immutable max_supply;
     bytes32 public i_merkleRoot;
-    BitMaps.BitMap private _airdropList;
+    BitMaps.BitMap private rewardClaimList;
 
     address private _deployer;
 
@@ -45,19 +45,19 @@ contract TokenBoilerPlate is ERC20, Ownable {
         _burn(msg.sender, amount);
     }
 
-    function claimProof(
+    function claimRewards(
         bytes32[] calldata proof,
         uint256 index,
         uint256 amount
     ) external {
         // check if already claimed
-        require(!BitMaps.get(_airdropList, index), "Already claimed");
+        require(!BitMaps.get(rewardClaimList, index), "Already claimed");
 
         // verify proof
         _verifyProof(proof, index, amount, msg.sender);
 
-        // set airdrop as claimed
-        BitMaps.setTo(_airdropList, index, true);
+        // set rewards as claimed
+        BitMaps.setTo(rewardClaimList, index, true);
 
         //transfer claimable tokens
         transferFrom(address(this), msg.sender, amount);
