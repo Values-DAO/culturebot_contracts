@@ -1,9 +1,8 @@
-//SPDX-License-Identifier: Bancor LICENSE
-pragma solidity ^0.8.0;
+//SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
 
 import "../Power.sol";
 
-/* Note From https://github.com/bancorprotocol/contracts-solidity/blob/master/solidity/contracts/converter/BancorFormula.sol with some minor alterations */
 contract BancorFormula is Power {
     uint32 private constant MAX_WEIGHT = 1000000;
 

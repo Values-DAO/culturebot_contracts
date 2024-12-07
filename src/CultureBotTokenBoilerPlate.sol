@@ -7,7 +7,7 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {BitMaps} from "@openzeppelin/contracts/utils/structs/BitMaps.sol";
 import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 
-contract CultureBotBoilerPlate is ERC20, Ownable {
+contract CultureBotTokenBoilerPlate is ERC20, Ownable {
     //error
     error TBP__InvalidParams();
     error TBP__OnlyFactoryCanAccess();
@@ -20,13 +20,6 @@ contract CultureBotBoilerPlate is ERC20, Ownable {
     BitMaps.BitMap private rewardClaimList;
 
     address private _deployer;
-    address public constant FACTORY_CONTRACT =
-        0x66aAf3098E1eB1F24348e84F509d8bcfD92D0620;
-
-    // modifier factoryOnlyAccess() {
-    //     if (msg.sender != FACTORY_CONTRACT) revert TBP__OnlyFactoryCanAccess();
-    //     _;
-    // }
 
     constructor(
         string memory name_,

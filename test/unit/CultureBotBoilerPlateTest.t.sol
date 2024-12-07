@@ -2,11 +2,11 @@
 pragma solidity ^0.8.24;
 
 import {Test} from "forge-std/Test.sol";
-import {CultureBotBoilerPlate} from "src/CultureBotBoilerPlate.sol";
+import {CultureBotTokenBoilerPlate} from "src/CultureBotTokenBoilerPlate.sol";
 import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 
-contract CultureBotBoilerPlateTest is Test {
-    CultureBotBoilerPlate public token;
+contract CultureBotTokenBoilerPlateTest is Test {
+    CultureBotTokenBoilerPlate public token;
 
     // Test addresses
     address public owner;
@@ -52,7 +52,7 @@ contract CultureBotBoilerPlateTest is Test {
 
         // Deploy token
         vm.prank(owner);
-        token = new CultureBotBoilerPlate(
+        token = new CultureBotTokenBoilerPlate(
             "CultureBot",
             "CULT",
             TOTAL_SUPPLY,
@@ -117,8 +117,8 @@ contract CultureBotBoilerPlateTest is Test {
         address[] memory incompletAddresses = new address[](2);
         uint256[] memory incompletAmounts = new uint256[](3);
 
-        vm.expectRevert(CultureBotBoilerPlate.TBP__InvalidParams.selector);
-        new CultureBotBoilerPlate(
+        vm.expectRevert(CultureBotTokenBoilerPlate.TBP__InvalidParams.selector);
+        new CultureBotTokenBoilerPlate(
             "CultureBot",
             "CULT",
             TOTAL_SUPPLY,
