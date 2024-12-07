@@ -131,7 +131,7 @@ contract CultureBotBoilerPlateTest is Test {
     function test_tokenMint() public {
         uint256 mintAmount = 1000 * 10 ** 18;
         vm.prank(token.FACTORY_CONTRACT());
-        token.tokenMint(mintAmount);
+        token.tokenMint(msg.sender, mintAmount);
 
         assertEq(token.balanceOf(token.FACTORY_CONTRACT()), mintAmount);
     }
@@ -140,11 +140,11 @@ contract CultureBotBoilerPlateTest is Test {
     function test_tokenBurn() public {
         uint256 initialMintAmount = 2000 * 10 ** 18;
         vm.prank(token.FACTORY_CONTRACT());
-        token.tokenMint(initialMintAmount);
+        token.tokenMint(msg.sender, initialMintAmount);
 
         uint256 burnAmount = 1000 * 10 ** 18;
         vm.prank(token.FACTORY_CONTRACT());
-        token.tokenBurn(burnAmount);
+        token.tokenBurn(msg.sender, burnAmount);
 
         assertEq(
             token.balanceOf(token.FACTORY_CONTRACT()),
@@ -178,7 +178,7 @@ contract CultureBotBoilerPlateTest is Test {
 
         // Fund the contract with claimable tokens
         vm.prank(owner);
-        token.tokenMint(claimAmount);
+        token.tokenMint(msg.sender, claimAmount);
 
         // Claim rewards
         vm.prank(user2);
@@ -195,7 +195,7 @@ contract CultureBotBoilerPlateTest is Test {
 
         // Fund the contract
         vm.prank(owner);
-        token.tokenMint(claimAmount);
+        token.tokenMint(msg.sender, claimAmount);
 
         // First claim
         vm.prank(user2);
@@ -214,7 +214,7 @@ contract CultureBotBoilerPlateTest is Test {
 
         // Fund the contract
         vm.prank(owner);
-        token.tokenMint(claimAmount);
+        token.tokenMint(msg.sender, claimAmount);
 
         // Invalid proof
         bytes32[] memory invalidProof = new bytes32[](1);

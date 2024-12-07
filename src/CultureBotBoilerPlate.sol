@@ -23,10 +23,10 @@ contract CultureBotBoilerPlate is ERC20, Ownable {
     address public constant FACTORY_CONTRACT =
         0x66aAf3098E1eB1F24348e84F509d8bcfD92D0620;
 
-    modifier factoryOnlyAccess() {
-        if (msg.sender != FACTORY_CONTRACT) revert TBP__OnlyFactoryCanAccess();
-        _;
-    }
+    // modifier factoryOnlyAccess() {
+    //     if (msg.sender != FACTORY_CONTRACT) revert TBP__OnlyFactoryCanAccess();
+    //     _;
+    // }
 
     constructor(
         string memory name_,
@@ -45,12 +45,12 @@ contract CultureBotBoilerPlate is ERC20, Ownable {
         }
     }
 
-    function tokenMint(uint256 amount) public factoryOnlyAccess {
-        _mint(msg.sender, amount);
+    function tokenMint(address caller, uint256 amount) public {
+        _mint(caller, amount);
     }
 
-    function tokenBurn(uint256 amount) public factoryOnlyAccess {
-        _burn(msg.sender, amount);
+    function tokenBurn(address caller, uint256 amount) public {
+        _burn(caller, amount);
     }
 
     function claimRewards(
@@ -81,10 +81,6 @@ contract CultureBotBoilerPlate is ERC20, Ownable {
             bytes.concat(keccak256(abi.encode(addr, index, amount)))
         );
         require(MerkleProof.verify(proof, i_merkleRoot, leaf), "Invalid proof");
-    }
-
-    function totalSupply() public view virtual override returns (uint256) {
-        return max_supply;
     }
 
     function deployer() public view returns (address) {

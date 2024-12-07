@@ -7,6 +7,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./BancorFormula/BancorFormula.sol";
 import {CultureBotBoilerPlate} from "src/CultureBotBoilerPlate.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {console} from "forge-std/console.sol";
 
 contract CultureBotFactory is Context {
     CultureBotBoilerPlate tokenBoilerPlate;
@@ -14,10 +15,12 @@ contract CultureBotFactory is Context {
 
     // Reserve token. Should be a stable coin. For convenience, we'll assume USDC
     // Theoretically, should be immutable, but need to factor in coin contract updates.
-    address internal r_token;
+    address public r_token;
 
     // Reserve Weight
     uint32 internal immutable _cw;
+    uint128 public constant GRADUATION_MC = 69420;
+    uint256 public constant MAXIMUM_SUPPLY = 100_000_000_000;
 
     event Initialised(
         address creator,
@@ -45,8 +48,6 @@ contract CultureBotFactory is Context {
     function init(
         string memory name_,
         string memory symbol_,
-        address deployer_,
-        uint256 _max_supply,
         address[] memory allocationAddys,
         uint256[] memory allocationAmount
     ) public payable {
@@ -54,8 +55,7 @@ contract CultureBotFactory is Context {
             new CultureBotBoilerPlate(
                 name_,
                 symbol_,
-                deployer_,
-                _max_supply,
+                MAXIMUM_SUPPLY,
                 allocationAddys,
                 allocationAmount
             )
@@ -95,7 +95,7 @@ contract CultureBotFactory is Context {
     function price(bytes32 communityId) public view virtual returns (uint256) {
         address tokenAddy = communityToToken[communityId];
         return
-            (address(this).balance /
+            (IERC20(r_token).balanceOf(address(this)) /
                 CultureBotBoilerPlate(tokenAddy).totalSupply()) *
             (1000000 / reserveWeight());
     }
@@ -109,15 +109,26 @@ contract CultureBotFactory is Context {
         bytes32 communityId
     ) external payable virtual {
         address tokenAddy = communityToToken[communityId];
+        if (
+            (price(communityId) *
+                CultureBotBoilerPlate(tokenAddy).totalSupply()) >= GRADUATION_MC
+        ) {
+            console.log("graduated already");
+            return;
+        }
+
         uint256 amount = bancorFormulaContract.purchaseTargetAmount(
-            IERC20(tokenAddy).totalSupply(),
+            CultureBotBoilerPlate(tokenAddy).totalSupply(),
             reserveBalance(),
             reserveWeight(),
             deposit
         );
-        CultureBotBoilerPlate(tokenAddy).tokenMint(amount);
+
+        CultureBotBoilerPlate(tokenAddy).tokenMint(msg.sender, amount);
+
         // Add `try / catch` statement for smoother error handling
         IERC20(r_token).transferFrom(msg.sender, address(this), deposit);
+
         emit Mint(msg.sender, amount);
     }
 
@@ -133,8 +144,9 @@ contract CultureBotFactory is Context {
             CultureBotBoilerPlate(tokenAddy).totalSupply() - amount > 0,
             "BancorContinuousToken: Requested Retire Amount Exceeds Supply"
         );
+        console.log("callerAddy:", msg.sender);
         require(
-            amount <= CultureBotBoilerPlate(tokenAddy).balanceOf(_msgSender()),
+            amount <= CultureBotBoilerPlate(tokenAddy).balanceOf(msg.sender),
             "BancorContinuousToken: Requested Retire Amount Exceeds Owned"
         );
         uint256 liquidity = bancorFormulaContract.saleTargetAmount(
@@ -144,8 +156,8 @@ contract CultureBotFactory is Context {
             amount
         );
         IERC20(r_token).transfer(msg.sender, liquidity);
-        CultureBotBoilerPlate(tokenAddy).tokenBurn(amount);
-        emit Retire(_msgSender(), amount, liquidity);
+        CultureBotBoilerPlate(tokenAddy).tokenBurn(msg.sender, amount);
+        emit Retire(msg.sender, amount, liquidity);
     }
 
     /// @notice Cost of purchasing given amount of tokens
