@@ -8,6 +8,10 @@ import {BitMaps} from "@openzeppelin/contracts/utils/structs/BitMaps.sol";
 import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 
 contract CultureBotBoilerPlate is ERC20, Ownable {
+    //error
+    error TBP__InvalidParams();
+    error TBP__OnlyFactoryCanAccess();
+
     string private _name;
     string private _symbol;
     uint8 private immutable _decimals;
@@ -16,20 +20,24 @@ contract CultureBotBoilerPlate is ERC20, Ownable {
     BitMaps.BitMap private rewardClaimList;
 
     address private _deployer;
+    address public constant FACTORY_CONTRACT =
+        0x66aAf3098E1eB1F24348e84F509d8bcfD92D0620;
 
-    error TBP__InvalidParams();
+    modifier factoryOnlyAccess() {
+        if (msg.sender != FACTORY_CONTRACT) revert TBP__OnlyFactoryCanAccess();
+        _;
+    }
 
     constructor(
         string memory name_,
         string memory symbol_,
-        address deployer_,
         uint256 _max_supply,
         address[] memory allocationAddys,
         uint256[] memory allocationAmount
     ) ERC20(name_, symbol_) Ownable(msg.sender) {
         if (allocationAddys.length != allocationAmount.length)
             revert TBP__InvalidParams();
-        _deployer = deployer_;
+        _deployer = msg.sender;
         max_supply = _max_supply;
 
         for (uint i = 0; i < allocationAddys.length; i++) {
@@ -37,11 +45,11 @@ contract CultureBotBoilerPlate is ERC20, Ownable {
         }
     }
 
-    function tokenMint(uint256 amount) public {
+    function tokenMint(uint256 amount) public factoryOnlyAccess {
         _mint(msg.sender, amount);
     }
 
-    function tokenBurn(uint256 amount) public {
+    function tokenBurn(uint256 amount) public factoryOnlyAccess {
         _burn(msg.sender, amount);
     }
 
