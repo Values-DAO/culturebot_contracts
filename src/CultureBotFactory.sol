@@ -7,7 +7,6 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./BancorFormula/BancorFormula.sol";
 import {CultureBotTokenBoilerPlate} from "src/CultureBotTokenBoilerPlate.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {console} from "forge-std/console.sol";
 
 contract CultureBotFactory is Context {
     //error
@@ -69,7 +68,6 @@ contract CultureBotFactory is Context {
         );
         communityToToken[communityId] = newToken;
         emit Initialised(msg.sender, name_, symbol_, newToken, communityId);
-        bancorFormulaContract.init();
     }
 
     /// @notice Returns reserve balance
@@ -120,7 +118,6 @@ contract CultureBotFactory is Context {
                 CultureBotTokenBoilerPlate(tokenAddy).totalSupply()) /
                 PRICE_PRECISION) >= GRADUATION_MC
         ) {
-            console.log("graduated already");
             return;
         }
 
@@ -151,7 +148,7 @@ contract CultureBotFactory is Context {
             CultureBotTokenBoilerPlate(tokenAddy).totalSupply() - amount > 0,
             "BancorContinuousToken: Requested Retire Amount Exceeds Supply"
         );
-        console.log("callerAddy:", msg.sender);
+
         require(
             amount <=
                 CultureBotTokenBoilerPlate(tokenAddy).balanceOf(msg.sender),
