@@ -33,9 +33,14 @@ contract CultureBotFactory is Context {
         bytes32 communityId
     );
 
-    event Mint(address indexed by, uint256 amount);
+    event Mint(address indexed by, uint256 amount, bytes32 communityId);
 
-    event Retire(address indexed by, uint256 amount, uint256 liquidity);
+    event Retire(
+        address indexed by,
+        uint256 amount,
+        uint256 liquidity,
+        bytes32 communityId
+    );
 
     mapping(bytes32 => address) public communityToToken;
 
@@ -60,7 +65,8 @@ contract CultureBotFactory is Context {
                 symbol_,
                 MAXIMUM_SUPPLY,
                 allocationAddys,
-                allocationAmount
+                allocationAmount,
+                address(this)
             )
         );
         bytes32 communityId = keccak256(
@@ -133,7 +139,7 @@ contract CultureBotFactory is Context {
         // Add `try / catch` statement for smoother error handling
         IERC20(r_token).transferFrom(msg.sender, address(this), deposit);
 
-        emit Mint(msg.sender, amount);
+        emit Mint(msg.sender, amount, communityId);
     }
 
     /// @notice Retires tokens of given amount, and transfers pertaining reserve tokens to account
@@ -162,7 +168,7 @@ contract CultureBotFactory is Context {
         );
         IERC20(r_token).transfer(msg.sender, liquidity);
         CultureBotTokenBoilerPlate(tokenAddy).tokenBurn(msg.sender, amount);
-        emit Retire(msg.sender, amount, liquidity);
+        emit Retire(msg.sender, amount, liquidity, communityId);
     }
 
     /// @notice Cost of purchasing given amount of tokens

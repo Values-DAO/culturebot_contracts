@@ -130,26 +130,23 @@ contract CultureBotTokenBoilerPlateTest is Test {
     // Mint Tests
     function test_tokenMint() public {
         uint256 mintAmount = 1000 * 10 ** 18;
-        vm.prank(token.FACTORY_CONTRACT());
+
         token.tokenMint(msg.sender, mintAmount);
 
-        assertEq(token.balanceOf(token.FACTORY_CONTRACT()), mintAmount);
+        assertEq(token.balanceOf(msg.sender), mintAmount);
     }
 
     // Burn Tests
     function test_tokenBurn() public {
         uint256 initialMintAmount = 2000 * 10 ** 18;
-        vm.prank(token.FACTORY_CONTRACT());
+
         token.tokenMint(msg.sender, initialMintAmount);
 
         uint256 burnAmount = 1000 * 10 ** 18;
-        vm.prank(token.FACTORY_CONTRACT());
+
         token.tokenBurn(msg.sender, burnAmount);
 
-        assertEq(
-            token.balanceOf(token.FACTORY_CONTRACT()),
-            initialMintAmount - burnAmount
-        );
+        assertEq(token.balanceOf(msg.sender), initialMintAmount - burnAmount);
     }
 
     // Merkle Root Tests

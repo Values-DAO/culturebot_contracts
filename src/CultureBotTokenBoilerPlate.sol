@@ -19,18 +19,24 @@ contract CultureBotTokenBoilerPlate is ERC20, Ownable {
     bytes32 public i_merkleRoot;
     BitMaps.BitMap private rewardClaimList;
 
-    address private _deployer;
+    address private factory;
+
+    modifier onlyFactory() {
+        if (msg.sender != factory) revert TBP__OnlyFactoryCanAccess();
+        _;
+    }
 
     constructor(
         string memory name_,
         string memory symbol_,
         uint256 _max_supply,
         address[] memory allocationAddys,
-        uint256[] memory allocationAmount
+        uint256[] memory allocationAmount,
+        address _factory_
     ) ERC20(name_, symbol_) Ownable(msg.sender) {
         if (allocationAddys.length != allocationAmount.length)
             revert TBP__InvalidParams();
-        _deployer = msg.sender;
+        factory = _factory_;
         max_supply = _max_supply;
 
         for (uint i = 0; i < allocationAddys.length; i++) {
@@ -38,11 +44,11 @@ contract CultureBotTokenBoilerPlate is ERC20, Ownable {
         }
     }
 
-    function tokenMint(address caller, uint256 amount) public {
+    function tokenMint(address caller, uint256 amount) public onlyFactory {
         _mint(caller, amount);
     }
 
-    function tokenBurn(address caller, uint256 amount) public {
+    function tokenBurn(address caller, uint256 amount) public onlyFactory {
         _burn(caller, amount);
     }
 
@@ -76,8 +82,8 @@ contract CultureBotTokenBoilerPlate is ERC20, Ownable {
         require(MerkleProof.verify(proof, i_merkleRoot, leaf), "Invalid proof");
     }
 
-    function deployer() public view returns (address) {
-        return _deployer;
+    function _factory() public view returns (address) {
+        return factory;
     }
 
     function setMerkleRoot(bytes32 newMerkleRoot) public onlyOwner {
