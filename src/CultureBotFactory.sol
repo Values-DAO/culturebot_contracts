@@ -34,7 +34,6 @@ contract CultureBotFactory is Ownable {
     );
 
     event Mint(address indexed by, uint256 amount, bytes32 communityId);
-    event Mint(address indexed by, uint256 amount, bytes32 communityId);
 
     event Retire(
         address indexed by,
