@@ -107,6 +107,7 @@ contract CultureBotTokenBoilerPlateTest is Test {
         assertEq(token.name(), "CultureBot");
         assertEq(token.symbol(), "CULT");
         assertEq(token.factory(), address(factory));
+        assertEq(token.factory(), deployer);
         assertEq(token.totalSupply(), TOTAL_SUPPLY);
     }
 
@@ -135,6 +136,7 @@ contract CultureBotTokenBoilerPlateTest is Test {
     function test_tokenMint() public {
         uint256 mintAmount = 1000 * 10 ** 18;
         vm.prank(address(factory));
+
         token.tokenMint(msg.sender, mintAmount);
 
         assertEq(token.balanceOf(address(factory)), mintAmount);
@@ -144,16 +146,19 @@ contract CultureBotTokenBoilerPlateTest is Test {
     function test_tokenBurn() public {
         uint256 initialMintAmount = 2000 * 10 ** 18;
         vm.prank(address(factory));
+
         token.tokenMint(msg.sender, initialMintAmount);
 
         uint256 burnAmount = 1000 * 10 ** 18;
         vm.prank(address(factory));
+
         token.tokenBurn(msg.sender, burnAmount);
 
         assertEq(
             token.balanceOf(address(factory)),
             initialMintAmount - burnAmount
         );
+        assertEq(token.balanceOf(msg.sender), initialMintAmount - burnAmount);
     }
 
     // Merkle Root Tests

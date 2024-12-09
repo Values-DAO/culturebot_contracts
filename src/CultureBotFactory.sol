@@ -34,6 +34,7 @@ contract CultureBotFactory is Ownable {
     );
 
     event Mint(address indexed by, uint256 amount, bytes32 communityId);
+    event Mint(address indexed by, uint256 amount, bytes32 communityId);
 
     event Retire(
         address indexed by,
@@ -104,8 +105,10 @@ contract CultureBotFactory is Ownable {
 
     /// @notice Returns price at current supply
     /// @dev price = reserve_balance / (reserve_weight * total_supply)
+
     function price(bytes32 communityId) public view returns (uint256) {
         address tokenAddy = communityToToken[communityId];
+        //
         //
         return
             (((IERC20(r_token).balanceOf(address(this))) * PRICE_PRECISION) /
@@ -117,6 +120,7 @@ contract CultureBotFactory is Ownable {
     /// @dev Calls mint on token contract, purchaseTargetAmount on formula contract
     /// @param deposit The deposited amount of reserve tokens
     /// Note Must approve with reserve token before calling
+
     function mint(uint256 deposit, bytes32 communityId) external payable {
         address tokenAddy = communityToToken[communityId];
         if (deposit == 0) revert CBF__InsufficientDeposit();
@@ -140,6 +144,7 @@ contract CultureBotFactory is Ownable {
         // Add `try / catch` statement for smoother error handling
         IERC20(r_token).transferFrom(msg.sender, address(this), deposit);
 
+        emit Mint(msg.sender, amount, communityId);
         emit Mint(msg.sender, amount, communityId);
     }
 
@@ -166,6 +171,7 @@ contract CultureBotFactory is Ownable {
         );
         IERC20(r_token).transfer(msg.sender, liquidity);
         CultureBotTokenBoilerPlate(tokenAddy).tokenBurn(msg.sender, amount);
+        emit Retire(msg.sender, amount, liquidity, communityId);
         emit Retire(msg.sender, amount, liquidity, communityId);
     }
 
@@ -225,7 +231,6 @@ contract CultureBotFactory is Ownable {
     }
 
     /// @notice Changes reserve token address in case it is updated
-    /// NOTE need better implementation. Adding an admin account seems the best option.
     function setReserveToken(address _r_token) external onlyOwner {
         r_token = _r_token;
     }

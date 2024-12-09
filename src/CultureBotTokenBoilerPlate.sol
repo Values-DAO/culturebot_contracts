@@ -86,7 +86,7 @@ contract CultureBotTokenBoilerPlate is ERC20, Ownable {
         return factory;
     }
 
-    function setMerkleRoot(bytes32 newMerkleRoot) public onlyOwner {
+    function setMerkleRoot(bytes32 newMerkleRoot) public onlyFactory {
         i_merkleRoot = newMerkleRoot;
     }
 }
