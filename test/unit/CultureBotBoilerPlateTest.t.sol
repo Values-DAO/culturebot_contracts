@@ -57,7 +57,8 @@ contract CultureBotTokenBoilerPlateTest is Test {
             "CULT",
             TOTAL_SUPPLY,
             allocationAddresses,
-            allocationAmounts
+            allocationAmounts,
+            deployer
         );
 
         // Prepare Merkle Tree test data
@@ -103,7 +104,7 @@ contract CultureBotTokenBoilerPlateTest is Test {
     function test_constructor() public view {
         assertEq(token.name(), "CultureBot");
         assertEq(token.symbol(), "CULT");
-        assertEq(token.deployer(), deployer);
+        assertEq(token.factory(), deployer);
         assertEq(token.totalSupply(), TOTAL_SUPPLY);
     }
 
@@ -123,33 +124,31 @@ contract CultureBotTokenBoilerPlateTest is Test {
             "CULT",
             TOTAL_SUPPLY,
             incompletAddresses,
-            incompletAmounts
+            incompletAmounts,
+            msg.sender
         );
     }
 
     // Mint Tests
     function test_tokenMint() public {
         uint256 mintAmount = 1000 * 10 ** 18;
-        vm.prank(token.FACTORY_CONTRACT());
+
         token.tokenMint(msg.sender, mintAmount);
 
-        assertEq(token.balanceOf(token.FACTORY_CONTRACT()), mintAmount);
+        assertEq(token.balanceOf(msg.sender), mintAmount);
     }
 
     // Burn Tests
     function test_tokenBurn() public {
         uint256 initialMintAmount = 2000 * 10 ** 18;
-        vm.prank(token.FACTORY_CONTRACT());
+
         token.tokenMint(msg.sender, initialMintAmount);
 
         uint256 burnAmount = 1000 * 10 ** 18;
-        vm.prank(token.FACTORY_CONTRACT());
+
         token.tokenBurn(msg.sender, burnAmount);
 
-        assertEq(
-            token.balanceOf(token.FACTORY_CONTRACT()),
-            initialMintAmount - burnAmount
-        );
+        assertEq(token.balanceOf(msg.sender), initialMintAmount - burnAmount);
     }
 
     // Merkle Root Tests
