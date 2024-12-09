@@ -19,7 +19,7 @@ contract CultureBotTokenBoilerPlate is ERC20, Ownable {
     bytes32 public i_merkleRoot;
     BitMaps.BitMap private rewardClaimList;
 
-    address private factory;
+    address public factory;
 
     modifier onlyFactory() {
         if (msg.sender != factory) revert TBP__OnlyFactoryCanAccess();

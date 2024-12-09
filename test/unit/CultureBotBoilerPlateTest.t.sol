@@ -57,7 +57,8 @@ contract CultureBotTokenBoilerPlateTest is Test {
             "CULT",
             TOTAL_SUPPLY,
             allocationAddresses,
-            allocationAmounts
+            allocationAmounts,
+            deployer
         );
 
         // Prepare Merkle Tree test data
@@ -103,7 +104,7 @@ contract CultureBotTokenBoilerPlateTest is Test {
     function test_constructor() public view {
         assertEq(token.name(), "CultureBot");
         assertEq(token.symbol(), "CULT");
-        assertEq(token.deployer(), deployer);
+        assertEq(token.factory(), deployer);
         assertEq(token.totalSupply(), TOTAL_SUPPLY);
     }
 
@@ -123,7 +124,8 @@ contract CultureBotTokenBoilerPlateTest is Test {
             "CULT",
             TOTAL_SUPPLY,
             incompletAddresses,
-            incompletAmounts
+            incompletAmounts,
+            msg.sender
         );
     }
 

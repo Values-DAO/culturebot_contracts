@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import "@openzeppelin/contracts/utils/Context.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import "./BancorFormula/BancorFormula.sol";
 import {CultureBotTokenBoilerPlate} from "src/CultureBotTokenBoilerPlate.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-contract CultureBotFactory is Context {
+contract CultureBotFactory {
     //error
     error CBF__InsufficientDeposit();
 
@@ -94,15 +93,15 @@ contract CultureBotFactory is Context {
         return abi.decode(data, (uint256)) + 1e6;
     }
 
-    function reserveWeight() public view virtual returns (uint32) {
+    function reserveWeight() public view returns (uint32) {
         return _cw;
     }
 
     /// @notice Returns price at current supply
     /// @dev price = reserve_balance / (reserve_weight * total_supply)
-    function price(bytes32 communityId) public view virtual returns (uint256) {
+    function price(bytes32 communityId) public view returns (uint256) {
         address tokenAddy = communityToToken[communityId];
-
+        //
         return
             (((IERC20(r_token).balanceOf(address(this))) * PRICE_PRECISION) /
                 CultureBotTokenBoilerPlate(tokenAddy).totalSupply()) *
@@ -113,10 +112,7 @@ contract CultureBotFactory is Context {
     /// @dev Calls mint on token contract, purchaseTargetAmount on formula contract
     /// @param deposit The deposited amount of reserve tokens
     /// Note Must approve with reserve token before calling
-    function mint(
-        uint256 deposit,
-        bytes32 communityId
-    ) external payable virtual {
+    function mint(uint256 deposit, bytes32 communityId) external payable {
         address tokenAddy = communityToToken[communityId];
         if (deposit == 0) revert CBF__InsufficientDeposit();
         if (
@@ -145,10 +141,7 @@ contract CultureBotFactory is Context {
     /// @notice Retires tokens of given amount, and transfers pertaining reserve tokens to account
     /// @dev Calls burn on token contract, saleTargetAmmount on formula contract
     /// @param amount The amount of tokens being retired
-    function retire(
-        uint256 amount,
-        bytes32 communityId
-    ) external payable virtual {
+    function retire(uint256 amount, bytes32 communityId) external payable {
         address tokenAddy = communityToToken[communityId];
         require(
             CultureBotTokenBoilerPlate(tokenAddy).totalSupply() - amount > 0,
@@ -177,7 +170,7 @@ contract CultureBotFactory is Context {
     function purchaseCost(
         uint256 amount,
         bytes32 communityId
-    ) public view virtual returns (uint256) {
+    ) public view returns (uint256) {
         address tokenAddy = communityToToken[communityId];
         return
             bancorFormulaContract.purchaseCost(
@@ -194,7 +187,7 @@ contract CultureBotFactory is Context {
     function purchaseTargetAmount(
         uint256 deposit,
         bytes32 communityId
-    ) public view virtual returns (uint256) {
+    ) public view returns (uint256) {
         address tokenAddy = communityToToken[communityId];
         return
             bancorFormulaContract.purchaseTargetAmount(
@@ -211,7 +204,7 @@ contract CultureBotFactory is Context {
     function saleTargetAmount(
         uint256 amount,
         bytes32 communityId
-    ) public view virtual returns (uint256) {
+    ) public view returns (uint256) {
         address tokenAddy = communityToToken[communityId];
         require(
             CultureBotTokenBoilerPlate(tokenAddy).totalSupply() - amount > 0,
