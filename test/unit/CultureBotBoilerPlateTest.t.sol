@@ -4,9 +4,11 @@ pragma solidity ^0.8.24;
 import {Test} from "forge-std/Test.sol";
 import {CultureBotTokenBoilerPlate} from "src/CultureBotTokenBoilerPlate.sol";
 import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
+import {CultureBotFactory} from "src/CultureBotFactory.sol";
 
 contract CultureBotTokenBoilerPlateTest is Test {
     CultureBotTokenBoilerPlate public token;
+    CultureBotFactory public factory;
 
     // Test addresses
     address public owner;
@@ -57,7 +59,8 @@ contract CultureBotTokenBoilerPlateTest is Test {
             "CULT",
             TOTAL_SUPPLY,
             allocationAddresses,
-            allocationAmounts
+            allocationAmounts,
+            address(factory)
         );
 
         // Prepare Merkle Tree test data
@@ -103,7 +106,7 @@ contract CultureBotTokenBoilerPlateTest is Test {
     function test_constructor() public view {
         assertEq(token.name(), "CultureBot");
         assertEq(token.symbol(), "CULT");
-        assertEq(token.deployer(), deployer);
+        assertEq(token.factory(), address(factory));
         assertEq(token.totalSupply(), TOTAL_SUPPLY);
     }
 
@@ -123,31 +126,32 @@ contract CultureBotTokenBoilerPlateTest is Test {
             "CULT",
             TOTAL_SUPPLY,
             incompletAddresses,
-            incompletAmounts
+            incompletAmounts,
+            address(factory)
         );
     }
 
     // Mint Tests
     function test_tokenMint() public {
         uint256 mintAmount = 1000 * 10 ** 18;
-        vm.prank(token.FACTORY_CONTRACT());
+        vm.prank(address(factory));
         token.tokenMint(msg.sender, mintAmount);
 
-        assertEq(token.balanceOf(token.FACTORY_CONTRACT()), mintAmount);
+        assertEq(token.balanceOf(address(factory)), mintAmount);
     }
 
     // Burn Tests
     function test_tokenBurn() public {
         uint256 initialMintAmount = 2000 * 10 ** 18;
-        vm.prank(token.FACTORY_CONTRACT());
+        vm.prank(address(factory));
         token.tokenMint(msg.sender, initialMintAmount);
 
         uint256 burnAmount = 1000 * 10 ** 18;
-        vm.prank(token.FACTORY_CONTRACT());
+        vm.prank(address(factory));
         token.tokenBurn(msg.sender, burnAmount);
 
         assertEq(
-            token.balanceOf(token.FACTORY_CONTRACT()),
+            token.balanceOf(address(factory)),
             initialMintAmount - burnAmount
         );
     }

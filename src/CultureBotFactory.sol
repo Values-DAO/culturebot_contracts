@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import "@openzeppelin/contracts/utils/Context.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import "./BancorFormula/BancorFormula.sol";
 import {CultureBotTokenBoilerPlate} from "src/CultureBotTokenBoilerPlate.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
-contract CultureBotFactory is Context {
+contract CultureBotFactory is Ownable {
     //error
     error CBF__InsufficientDeposit();
 
@@ -33,20 +33,29 @@ contract CultureBotFactory is Context {
         bytes32 communityId
     );
 
-    event Mint(address indexed by, uint256 amount);
+    event Mint(address indexed by, uint256 amount, bytes32 communityId);
 
-    event Retire(address indexed by, uint256 amount, uint256 liquidity);
+    event Retire(
+        address indexed by,
+        uint256 amount,
+        uint256 liquidity,
+        bytes32 communityId
+    );
 
     mapping(bytes32 => address) public communityToToken;
 
-    constructor(uint32 cw_, address r_token_, address bancorFormula) {
+    constructor(
+        uint32 cw_,
+        address r_token_,
+        address bancorFormula
+    ) Ownable(msg.sender) {
         _cw = cw_;
         r_token = r_token_;
         bancorFormulaContract = BancorFormula(bancorFormula);
     }
 
-    /// @notice initialize token with non-zero but negligible supply and reserve
-    /// @dev Initializes Bancor formula contract. Mints single token. Can only be called if token hasn't been initialized.
+    /// @notice initialize token with allocation mints and reserve currency.
+    /// @dev Initializes Bancor formula contract. Mints single token.
     /// Note Must call after construction, and before calling any other functions
     function init(
         string memory name_,
@@ -60,7 +69,8 @@ contract CultureBotFactory is Context {
                 symbol_,
                 MAXIMUM_SUPPLY,
                 allocationAddys,
-                allocationAmount
+                allocationAmount,
+                address(this)
             )
         );
         bytes32 communityId = keccak256(
@@ -77,7 +87,7 @@ contract CultureBotFactory is Context {
      *  Reserve balance will be zero initially, but in theory should be 1 reserve token.
      *  We can assume the contract has 1USDC initially, since it cannot be withdrawn anyway.
      */
-    function reserveBalance() public view virtual returns (uint256) {
+    function reserveBalance() public view returns (uint256) {
         (bool success, bytes memory data) = r_token.staticcall(
             abi.encodeWithSelector(IERC20.balanceOf.selector, address(this))
         );
@@ -88,15 +98,15 @@ contract CultureBotFactory is Context {
         return abi.decode(data, (uint256)) + 1e6;
     }
 
-    function reserveWeight() public view virtual returns (uint32) {
+    function reserveWeight() public view returns (uint32) {
         return _cw;
     }
 
     /// @notice Returns price at current supply
     /// @dev price = reserve_balance / (reserve_weight * total_supply)
-    function price(bytes32 communityId) public view virtual returns (uint256) {
+    function price(bytes32 communityId) public view returns (uint256) {
         address tokenAddy = communityToToken[communityId];
-
+        //
         return
             (((IERC20(r_token).balanceOf(address(this))) * PRICE_PRECISION) /
                 CultureBotTokenBoilerPlate(tokenAddy).totalSupply()) *
@@ -107,10 +117,7 @@ contract CultureBotFactory is Context {
     /// @dev Calls mint on token contract, purchaseTargetAmount on formula contract
     /// @param deposit The deposited amount of reserve tokens
     /// Note Must approve with reserve token before calling
-    function mint(
-        uint256 deposit,
-        bytes32 communityId
-    ) external payable virtual {
+    function mint(uint256 deposit, bytes32 communityId) external payable {
         address tokenAddy = communityToToken[communityId];
         if (deposit == 0) revert CBF__InsufficientDeposit();
         if (
@@ -133,16 +140,13 @@ contract CultureBotFactory is Context {
         // Add `try / catch` statement for smoother error handling
         IERC20(r_token).transferFrom(msg.sender, address(this), deposit);
 
-        emit Mint(msg.sender, amount);
+        emit Mint(msg.sender, amount, communityId);
     }
 
     /// @notice Retires tokens of given amount, and transfers pertaining reserve tokens to account
     /// @dev Calls burn on token contract, saleTargetAmmount on formula contract
     /// @param amount The amount of tokens being retired
-    function retire(
-        uint256 amount,
-        bytes32 communityId
-    ) external payable virtual {
+    function retire(uint256 amount, bytes32 communityId) external payable {
         address tokenAddy = communityToToken[communityId];
         require(
             CultureBotTokenBoilerPlate(tokenAddy).totalSupply() - amount > 0,
@@ -162,7 +166,7 @@ contract CultureBotFactory is Context {
         );
         IERC20(r_token).transfer(msg.sender, liquidity);
         CultureBotTokenBoilerPlate(tokenAddy).tokenBurn(msg.sender, amount);
-        emit Retire(msg.sender, amount, liquidity);
+        emit Retire(msg.sender, amount, liquidity, communityId);
     }
 
     /// @notice Cost of purchasing given amount of tokens
@@ -171,7 +175,7 @@ contract CultureBotFactory is Context {
     function purchaseCost(
         uint256 amount,
         bytes32 communityId
-    ) public view virtual returns (uint256) {
+    ) public view returns (uint256) {
         address tokenAddy = communityToToken[communityId];
         return
             bancorFormulaContract.purchaseCost(
@@ -188,7 +192,7 @@ contract CultureBotFactory is Context {
     function purchaseTargetAmount(
         uint256 deposit,
         bytes32 communityId
-    ) public view virtual returns (uint256) {
+    ) public view returns (uint256) {
         address tokenAddy = communityToToken[communityId];
         return
             bancorFormulaContract.purchaseTargetAmount(
@@ -205,7 +209,7 @@ contract CultureBotFactory is Context {
     function saleTargetAmount(
         uint256 amount,
         bytes32 communityId
-    ) public view virtual returns (uint256) {
+    ) public view returns (uint256) {
         address tokenAddy = communityToToken[communityId];
         require(
             CultureBotTokenBoilerPlate(tokenAddy).totalSupply() - amount > 0,
@@ -222,7 +226,7 @@ contract CultureBotFactory is Context {
 
     /// @notice Changes reserve token address in case it is updated
     /// NOTE need better implementation. Adding an admin account seems the best option.
-    function setReserveToken(address _r_token) external virtual {
+    function setReserveToken(address _r_token) external onlyOwner {
         r_token = _r_token;
     }
 }
