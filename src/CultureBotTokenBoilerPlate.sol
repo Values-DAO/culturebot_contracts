@@ -10,6 +10,7 @@ import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProo
 contract CultureBotTokenBoilerPlate is ERC20, Ownable {
     //error
     error TBP__InvalidParams();
+    error TBP__CantExceedMaxSupply();
     error TBP__OnlyFactoryCanAccess();
 
     string private _name;
@@ -44,11 +45,13 @@ contract CultureBotTokenBoilerPlate is ERC20, Ownable {
         }
     }
 
-    function tokenMint(address caller, uint256 amount) public onlyFactory {
+    function tokenMint(address caller, uint256 amount) external onlyFactory {
+        if (totalSupply() + amount >= max_supply)
+            revert TBP__CantExceedMaxSupply();
         _mint(caller, amount);
     }
 
-    function tokenBurn(address caller, uint256 amount) public onlyFactory {
+    function tokenBurn(address caller, uint256 amount) external onlyFactory {
         _burn(caller, amount);
     }
 
@@ -82,8 +85,15 @@ contract CultureBotTokenBoilerPlate is ERC20, Ownable {
         require(MerkleProof.verify(proof, i_merkleRoot, leaf), "Invalid proof");
     }
 
-    function getFactory() public view returns (address) {
+    function getFactory() external view returns (address) {
         return factory;
+    }
+
+    function tokenTransfer(
+        uint256 amountToTransfer,
+        address toAddress
+    ) external onlyFactory {
+        transferFrom(address(this), toAddress, amountToTransfer);
     }
 
     function setMerkleRoot(bytes32 newMerkleRoot) public onlyFactory {

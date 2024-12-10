@@ -11,6 +11,8 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 contract CultureBotFactory is Ownable {
     //error
     error CBF__InsufficientDeposit();
+    error CBF__TokenAlreadyGraduated();
+    error CBF__ONlyCallableAfterGraduation();
 
     CultureBotTokenBoilerPlate tokenBoilerPlate;
     BancorFormula bancorFormulaContract;
@@ -43,6 +45,13 @@ contract CultureBotFactory is Ownable {
     );
 
     mapping(bytes32 => address) public communityToToken;
+    mapping(bytes32 => bool) public isTokenGraduated;
+
+    modifier ifNotGraduated(bytes32 communityId) {
+        if (isTokenGraduated[communityId] == true)
+            revert CBF__TokenAlreadyGraduated();
+        _;
+    }
 
     constructor(
         uint32 cw_,
@@ -107,8 +116,7 @@ contract CultureBotFactory is Ownable {
 
     function price(bytes32 communityId) public view returns (uint256) {
         address tokenAddy = communityToToken[communityId];
-        //
-        //
+
         return
             (((IERC20(r_token).balanceOf(address(this))) * PRICE_PRECISION) /
                 CultureBotTokenBoilerPlate(tokenAddy).totalSupply()) *
@@ -128,6 +136,7 @@ contract CultureBotFactory is Ownable {
                 CultureBotTokenBoilerPlate(tokenAddy).totalSupply()) /
                 PRICE_PRECISION) >= GRADUATION_MC
         ) {
+            isTokenGraduated[communityId] = true;
             return;
         }
 
@@ -144,13 +153,28 @@ contract CultureBotFactory is Ownable {
         IERC20(r_token).transferFrom(msg.sender, address(this), deposit);
 
         emit Mint(msg.sender, amount, communityId);
-        emit Mint(msg.sender, amount, communityId);
+    }
+
+    function adminMint(bytes32 communityId) public onlyOwner {
+        if (isTokenGraduated[communityId] != true)
+            revert CBF__ONlyCallableAfterGraduation();
+
+        address tokenAddy = communityToToken[communityId];
+        uint256 supplyLeftToMint = MAXIMUM_SUPPLY -
+            CultureBotTokenBoilerPlate(tokenAddy).totalSupply();
+        CultureBotTokenBoilerPlate(tokenAddy).tokenMint(
+            tokenAddy,
+            supplyLeftToMint
+        );
     }
 
     /// @notice Retires tokens of given amount, and transfers pertaining reserve tokens to account
     /// @dev Calls burn on token contract, saleTargetAmmount on formula contract
     /// @param amount The amount of tokens being retired
-    function retire(uint256 amount, bytes32 communityId) external payable {
+    function retire(
+        uint256 amount,
+        bytes32 communityId
+    ) external payable ifNotGraduated(communityId) {
         address tokenAddy = communityToToken[communityId];
         require(
             CultureBotTokenBoilerPlate(tokenAddy).totalSupply() - amount > 0,
@@ -170,7 +194,6 @@ contract CultureBotFactory is Ownable {
         );
         IERC20(r_token).transfer(msg.sender, liquidity);
         CultureBotTokenBoilerPlate(tokenAddy).tokenBurn(msg.sender, amount);
-        emit Retire(msg.sender, amount, liquidity, communityId);
         emit Retire(msg.sender, amount, liquidity, communityId);
     }
 
