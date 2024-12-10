@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-
-import "./BancorFormula/BancorFormula.sol";
+import {BancorFormula} from "src/BancorFormula/BancorFormula.sol";
 import {CultureBotTokenBoilerPlate} from "src/CultureBotTokenBoilerPlate.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
@@ -18,7 +16,6 @@ contract CultureBotFactory is Ownable {
     BancorFormula bancorFormulaContract;
 
     // Reserve token. Should be a stable coin. For convenience, we'll assume USDC
-    // Theoretically, should be immutable, but need to factor in coin contract updates.
     address public r_token;
 
     // Reserve Weight
@@ -123,21 +120,44 @@ contract CultureBotFactory is Ownable {
             (1000000 / reserveWeight());
     }
 
+    function expectedPrice(
+        bytes32 communityId,
+        uint256 reserveDeposit
+    ) public view returns (uint256) {
+        address tokenAddy = communityToToken[communityId];
+        uint256 expectedTokenSupplyAddition = purchaseTargetAmount(
+            reserveDeposit,
+            communityId
+        );
+
+        return
+            (((IERC20(r_token).balanceOf(address(this)) + reserveDeposit) *
+                PRICE_PRECISION) /
+                (CultureBotTokenBoilerPlate(tokenAddy).totalSupply() +
+                    expectedTokenSupplyAddition)) * (1000000 / reserveWeight());
+    }
+
     /// @notice Mints tokens pertaining to the deposited amount of reserve tokens
     /// @dev Calls mint on token contract, purchaseTargetAmount on formula contract
     /// @param deposit The deposited amount of reserve tokens
     /// Note Must approve with reserve token before calling
 
-    function mint(uint256 deposit, bytes32 communityId) external payable {
+    function mint(
+        uint256 deposit,
+        bytes32 communityId
+    ) external payable ifNotGraduated(communityId) {
         address tokenAddy = communityToToken[communityId];
+        uint256 expectedSupplyAddition = purchaseTargetAmount(
+            deposit,
+            communityId
+        );
         if (deposit == 0) revert CBF__InsufficientDeposit();
         if (
-            ((price(communityId) *
-                CultureBotTokenBoilerPlate(tokenAddy).totalSupply()) /
-                PRICE_PRECISION) >= GRADUATION_MC
+            ((expectedPrice(communityId, deposit) *
+                (CultureBotTokenBoilerPlate(tokenAddy).totalSupply() +
+                    expectedSupplyAddition)) / PRICE_PRECISION) >= GRADUATION_MC
         ) {
             isTokenGraduated[communityId] = true;
-            return;
         }
 
         uint256 amount = bancorFormulaContract.purchaseTargetAmount(
