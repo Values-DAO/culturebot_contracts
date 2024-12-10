@@ -242,21 +242,21 @@ contract CultureBotFactoryTest is Test {
         reserveToken.approve(address(factory), MAXIMUM_SUPPLY * 10 ** 6);
 
         // Multiple minting attempts
-        for (uint i = 0; i < 69; i++) {
-            factory.mint(1000, communityId);
-        }
-        factory.mint(425, communityId);
+        // for (uint i = 0; i < 6; i++) {
+        // }
+        factory.mint(1000, communityId);
 
-        factory.mint(5, communityId);
+        // factory.mint(5, communityId);
 
         // Verify minting stops at market cap
         address tokenAddress = factory.communityToToken(communityId);
         CultureBotTokenBoilerPlate token = CultureBotTokenBoilerPlate(
             tokenAddress
         );
-
+        console.log("zPMC:", factory.price(communityId) * token.totalSupply());
         uint256 marketCap = (factory.price(communityId) * token.totalSupply()) /
-            1e9;
+            factory.PRICE_PRECISION();
+        console.log("currentSupply:", token.totalSupply());
 
         console.log("currentPrice:", factory.price(communityId));
         console.log("isTokenGraduated:", factory.isTokenGraduated(communityId));

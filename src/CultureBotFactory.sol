@@ -5,6 +5,7 @@ import {BancorFormula} from "src/BancorFormula/BancorFormula.sol";
 import {CultureBotTokenBoilerPlate} from "src/CultureBotTokenBoilerPlate.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {console} from "forge-std/console.sol";
 
 contract CultureBotFactory is Ownable {
     //error
@@ -112,14 +113,11 @@ contract CultureBotFactory is Ownable {
     /// @dev price = reserve_balance / (reserve_weight * total_supply)
 
     function price(bytes32 communityId) public view returns (uint256) {
-        address tokenAddy = communityToToken[communityId];
-
-        return
-            (((IERC20(r_token).balanceOf(address(this))) * PRICE_PRECISION) /
-                CultureBotTokenBoilerPlate(tokenAddy).totalSupply()) *
-            (1000000 / reserveWeight());
+        uint256 tokenPerDollar = purchaseTargetAmount(1, communityId);
+        return ((1 * PRICE_PRECISION) / tokenPerDollar);
     }
 
+    /// @notice Returns expected price at the expected supply
     function expectedPrice(
         bytes32 communityId,
         uint256 reserveDeposit
@@ -130,11 +128,15 @@ contract CultureBotFactory is Ownable {
             communityId
         );
 
-        return
-            (((IERC20(r_token).balanceOf(address(this)) + reserveDeposit) *
-                PRICE_PRECISION) /
-                (CultureBotTokenBoilerPlate(tokenAddy).totalSupply() +
-                    expectedTokenSupplyAddition)) * (1000000 / reserveWeight());
+        uint256 tokensPerDollar = bancorFormulaContract.purchaseTargetAmount(
+            (CultureBotTokenBoilerPlate(tokenAddy).totalSupply() +
+                expectedTokenSupplyAddition),
+            (reserveBalance() + reserveDeposit),
+            reserveWeight(),
+            1
+        );
+
+        return ((1 * PRICE_PRECISION) / tokensPerDollar);
     }
 
     /// @notice Mints tokens pertaining to the deposited amount of reserve tokens
@@ -151,6 +153,7 @@ contract CultureBotFactory is Ownable {
             deposit,
             communityId
         );
+
         if (deposit == 0) revert CBF__InsufficientDeposit();
         if (
             ((expectedPrice(communityId, deposit) *

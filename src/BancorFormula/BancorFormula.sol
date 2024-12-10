@@ -87,6 +87,7 @@ contract BancorFormula is Power {
         uint256 result;
         uint8 precision;
         uint256 baseN = (_amount + _reserveBalance);
+
         (result, precision) = power(
             baseN,
             _reserveBalance,
@@ -94,6 +95,7 @@ contract BancorFormula is Power {
             MAX_WEIGHT
         );
         uint256 temp = ((_supply * result) >> precision) + 1;
+
         return temp - _supply;
     }
 
