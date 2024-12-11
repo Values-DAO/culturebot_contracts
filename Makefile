@@ -40,14 +40,14 @@ ifeq ($(findstring --network ethereum,$(ARGS)),--network ethereum)
 endif
 
 deploy:
-#@forge script script/DeployBancorFormula.s.sol:DeployBancorFormula $(NETWORK_ARGS)
-	@forge script script/DeployCultureBotTokenBoilerPlate.s.sol:DeployCultureBotToken $(NETWORK_ARGS)
+	@forge script script/DeployCultureBotFactory.s.sol:DeployCultureBotFactory $(NETWORK_ARGS)
+#@forge script script/DeployCultureBotTokenBoilerPlate.s.sol:DeployCultureBotToken $(NETWORK_ARGS)
 
 
 
 
 verify:
-#@forge verify-contract --chain-id 84532 --watch --constructor-args `cast abi-encode "constructor(uint32,address,address)" "$(CW)" "$(RV_TOKEN)" "$(BANCOR_FORMULA)"` --etherscan-api-key $(ETHERSCAN_API_KEY) --compiler-version 0.8.24 0x6125E6895a1D9e291684180297f8a7932D22f598 src/CultureBotFactory.sol:CultureBotFactory
-	@forge verify-contract --chain-id 84532 --watch --constructor-args `cast abi-encode "constructor(string,string,uint256,address[3],uint256[3],address)" "$(NAME)" "$(SYMBOL)" "$(MAX_SUPPLY)" "[$(ALLOCATION_ADDY1),$(ALLOCATION_ADDY2),$(ALLOCATION_ADDY3)]" "[$(ALLOCATIONAMOUNT1),$(ALLOCATIONAMOUNT2),$(ALLOCATIONAMOUNT3)]" "$(FACTORY)"` --etherscan-api-key $(ETHERSCAN_API_KEY) --compiler-version 0.8.24 0xe2A1A3c40dFE8e29e00f25f50C113FF9b06ac912 src/CultureBotTokenBoilerPlate.sol:CultureBotTokenBoilerPlate
+	@forge verify-contract --chain-id 84532 --watch --constructor-args `cast abi-encode "constructor(uint32,address,address)" "$(CW)" "$(RV_TOKEN)" "$(BANCOR_FORMULA)"` --etherscan-api-key $(ETHERSCAN_API_KEY) --compiler-version 0.8.24 0x96925e434C93Feb584d5490baeD5AAdbbB5B0eD4 src/CultureBotFactory.sol:CultureBotFactory
+#@forge verify-contract --chain-id 84532 --watch --constructor-args `cast abi-encode "constructor(string,string,uint256,address[3],uint256[3],address)" "$(NAME)" "$(SYMBOL)" "$(MAX_SUPPLY)" "[$(ALLOCATION_ADDY1),$(ALLOCATION_ADDY2),$(ALLOCATION_ADDY3)]" "[$(ALLOCATIONAMOUNT1),$(ALLOCATIONAMOUNT2),$(ALLOCATIONAMOUNT3)]" "$(FACTORY)"` --etherscan-api-key $(ETHERSCAN_API_KEY) --compiler-version 0.8.24 0xe2A1A3c40dFE8e29e00f25f50C113FF9b06ac912 src/CultureBotTokenBoilerPlate.sol:CultureBotTokenBoilerPlate
 	
 

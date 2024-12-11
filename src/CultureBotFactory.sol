@@ -5,7 +5,6 @@ import {BancorFormula} from "src/BancorFormula/BancorFormula.sol";
 import {CultureBotTokenBoilerPlate} from "src/CultureBotTokenBoilerPlate.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {console} from "forge-std/console.sol";
 
 contract CultureBotFactory is Ownable {
     //error
@@ -23,6 +22,7 @@ contract CultureBotFactory is Ownable {
     uint32 internal immutable _cw;
     uint128 public constant GRADUATION_MC = 69420;
     uint256 public constant MAXIMUM_SUPPLY = 100_000_000_000;
+    uint256 public constant INITIAL_ALLOCATION = 100_000_000_00;
     uint256 public constant PRICE_PRECISION = 1e9;
 
     event Initialised(
@@ -155,10 +155,12 @@ contract CultureBotFactory is Ownable {
         );
 
         if (deposit == 0) revert CBF__InsufficientDeposit();
+
         if (
             ((expectedPrice(communityId, deposit) *
-                (CultureBotTokenBoilerPlate(tokenAddy).totalSupply() +
-                    expectedSupplyAddition)) / PRICE_PRECISION) >= GRADUATION_MC
+                ((CultureBotTokenBoilerPlate(tokenAddy).totalSupply() -
+                    INITIAL_ALLOCATION) + expectedSupplyAddition)) /
+                PRICE_PRECISION) >= GRADUATION_MC
         ) {
             isTokenGraduated[communityId] = true;
         }

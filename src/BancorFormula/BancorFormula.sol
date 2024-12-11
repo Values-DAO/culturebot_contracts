@@ -81,11 +81,13 @@ contract BancorFormula is Power {
         if (_amount == 0) return 0;
 
         // special case if the weight = 100%
-        if (_reserveWeight == MAX_WEIGHT)
+        if (_reserveWeight == MAX_WEIGHT) {
             return (_supply * _amount) / _reserveBalance;
+        }
 
         uint256 result;
         uint8 precision;
+
         uint256 baseN = (_amount + _reserveBalance);
 
         (result, precision) = power(

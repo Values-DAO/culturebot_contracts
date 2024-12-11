@@ -237,31 +237,35 @@ contract CultureBotFactoryTest is Test {
 
         // Prepare user
         vm.startPrank(user1);
-        reserveToken.mint(user1, MAXIMUM_SUPPLY * 10 ** 6);
+        reserveToken.mint(user1, (2 * MAXIMUM_SUPPLY) * 10 ** 6);
 
-        reserveToken.approve(address(factory), MAXIMUM_SUPPLY * 10 ** 6);
-
-        // Multiple minting attempts
-        // for (uint i = 0; i < 6; i++) {
-        // }
-        factory.mint(1000, communityId);
-
-        // factory.mint(5, communityId);
+        reserveToken.approve(address(factory), (2 * MAXIMUM_SUPPLY) * 10 ** 6);
 
         // Verify minting stops at market cap
         address tokenAddress = factory.communityToToken(communityId);
         CultureBotTokenBoilerPlate token = CultureBotTokenBoilerPlate(
             tokenAddress
         );
-        console.log("zPMC:", factory.price(communityId) * token.totalSupply());
-        uint256 marketCap = (factory.price(communityId) * token.totalSupply()) /
+
+        for (uint i = 0; i < 10; i++) {
+            factory.mint(1000, communityId);
+        }
+
+        console.log("tokenSupply:", token.totalSupply());
+        console.log("currentPrice:", factory.price(communityId)); //1000000000
+        // factory.mint(408, communityId);  //10000001000000
+        //9990001000000
+        uint256 marketCap = (factory.price(communityId) *
+            (token.totalSupply() - factory.INITIAL_ALLOCATION())) /
             factory.PRICE_PRECISION();
+        console.log("marketcap:", marketCap);
+
+        console.log("zPMC:", factory.price(communityId) * token.totalSupply());
         console.log("currentSupply:", token.totalSupply());
 
-        console.log("currentPrice:", factory.price(communityId));
+        // console.log("currentPrice:", factory.price(communityId));
         console.log("isTokenGraduated:", factory.isTokenGraduated(communityId));
 
-        console.log("marketcap:", marketCap);
         // assertTrue(
         //     marketCap <= GRADUATION_MC,
         //     "Market cap should not exceed graduation point"
