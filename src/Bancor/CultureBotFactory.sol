@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import {BancorFormula} from "src/BancorFormula/BancorFormula.sol";
-import {CultureBotTokenBoilerPlate} from "src/CultureBotTokenBoilerPlate.sol";
+import {CultureBotTokenBoilerPlate} from "src/Bancor/CultureBotTokenBoilerPlate.sol";
+import {BancorFormula} from "src/Bancor/BancorFormula/BancorFormula.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
@@ -14,6 +14,14 @@ contract CultureBotFactory is Ownable {
 
     CultureBotTokenBoilerPlate tokenBoilerPlate;
     BancorFormula bancorFormulaContract;
+
+    struct TokenDeets {
+        string name;
+        string symbol;
+        uint256 fundsRaised;
+        address tokenAddy;
+        address creatorAddy;
+    }
 
     // Reserve token. Should be a stable coin. For convenience, we'll assume USDC
     address public r_token;
@@ -33,20 +41,16 @@ contract CultureBotFactory is Ownable {
         bytes32 communityId
     );
 
-    event Mint(address indexed by, uint256 amount, bytes32 communityId);
+    event Mint(address indexed by, uint256 amount, uint256 depositAmount);
 
-    event Retire(
-        address indexed by,
-        uint256 amount,
-        uint256 liquidity,
-        bytes32 communityId
-    );
+    event Retire(address indexed by, uint256 amount, uint256 liquidity);
 
     mapping(bytes32 => address) public communityToToken;
-    mapping(bytes32 => bool) public isTokenGraduated;
+    mapping(address => bool) public isTokenGraduated;
+    mapping(address => TokenDeets) public tokenToDeets;
 
-    modifier ifNotGraduated(bytes32 communityId) {
-        if (isTokenGraduated[communityId] == true)
+    modifier ifNotGraduated(address tokenAddy) {
+        if (isTokenGraduated[tokenAddy] == true)
             revert CBF__TokenAlreadyGraduated();
         _;
     }
@@ -84,6 +88,13 @@ contract CultureBotFactory is Ownable {
             abi.encode(msg.sender, name_, symbol_, block.number)
         );
         communityToToken[communityId] = newToken;
+        tokenToDeets[newToken] = TokenDeets(
+            name_,
+            symbol_,
+            0,
+            newToken,
+            msg.sender
+        );
         emit Initialised(msg.sender, name_, symbol_, newToken, communityId);
     }
 
@@ -112,26 +123,25 @@ contract CultureBotFactory is Ownable {
     /// @notice Returns price at current supply
     /// @dev price = reserve_balance / (reserve_weight * total_supply)
 
-    function price(bytes32 communityId) public view returns (uint256) {
-        uint256 tokenPerDollar = purchaseTargetAmount(1, communityId);
+    function price(address tokenAddy) public view returns (uint256) {
+        uint256 tokenPerDollar = purchaseTargetAmount(1, tokenAddy);
         return ((1 * PRICE_PRECISION) / tokenPerDollar);
     }
 
     /// @notice Returns expected price at the expected supply
     function expectedPrice(
-        bytes32 communityId,
+        address tokenAddy,
         uint256 reserveDeposit
     ) public view returns (uint256) {
-        address tokenAddy = communityToToken[communityId];
         uint256 expectedTokenSupplyAddition = purchaseTargetAmount(
             reserveDeposit,
-            communityId
+            tokenAddy
         );
 
         uint256 tokensPerDollar = bancorFormulaContract.purchaseTargetAmount(
             (CultureBotTokenBoilerPlate(tokenAddy).totalSupply() +
                 expectedTokenSupplyAddition),
-            (reserveBalance() + reserveDeposit),
+            (tokenToDeets[tokenAddy].fundsRaised + reserveDeposit),
             reserveWeight(),
             1
         );
@@ -146,45 +156,43 @@ contract CultureBotFactory is Ownable {
 
     function mint(
         uint256 deposit,
-        bytes32 communityId
-    ) external payable ifNotGraduated(communityId) {
-        address tokenAddy = communityToToken[communityId];
+        address tokenAddy
+    ) external payable ifNotGraduated(tokenAddy) {
         uint256 expectedSupplyAddition = purchaseTargetAmount(
             deposit,
-            communityId
+            tokenAddy
         );
 
         if (deposit == 0) revert CBF__InsufficientDeposit();
 
         if (
-            ((expectedPrice(communityId, deposit) *
+            ((expectedPrice(tokenAddy, deposit) *
                 ((CultureBotTokenBoilerPlate(tokenAddy).totalSupply() -
                     INITIAL_ALLOCATION) + expectedSupplyAddition)) /
                 PRICE_PRECISION) >= GRADUATION_MC
         ) {
-            isTokenGraduated[communityId] = true;
+            isTokenGraduated[tokenAddy] = true;
         }
 
         uint256 amount = bancorFormulaContract.purchaseTargetAmount(
             CultureBotTokenBoilerPlate(tokenAddy).totalSupply(),
-            reserveBalance(),
+            tokenToDeets[tokenAddy].fundsRaised,
             reserveWeight(),
             deposit
         );
 
         CultureBotTokenBoilerPlate(tokenAddy).tokenMint(msg.sender, amount);
 
-        // Add `try / catch` statement for smoother error handling
         IERC20(r_token).transferFrom(msg.sender, address(this), deposit);
+        tokenToDeets[tokenAddy].fundsRaised += deposit;
 
-        emit Mint(msg.sender, amount, communityId);
+        emit Mint(msg.sender, amount, deposit);
     }
 
-    function adminMint(bytes32 communityId) public onlyOwner {
-        if (isTokenGraduated[communityId] != true)
+    function adminMint(address tokenAddy) public onlyOwner {
+        if (isTokenGraduated[tokenAddy] != true)
             revert CBF__ONlyCallableAfterGraduation();
 
-        address tokenAddy = communityToToken[communityId];
         uint256 supplyLeftToMint = MAXIMUM_SUPPLY -
             CultureBotTokenBoilerPlate(tokenAddy).totalSupply();
         CultureBotTokenBoilerPlate(tokenAddy).tokenMint(
@@ -198,9 +206,8 @@ contract CultureBotFactory is Ownable {
     /// @param amount The amount of tokens being retired
     function retire(
         uint256 amount,
-        bytes32 communityId
-    ) external payable ifNotGraduated(communityId) {
-        address tokenAddy = communityToToken[communityId];
+        address tokenAddy
+    ) external payable ifNotGraduated(tokenAddy) {
         require(
             CultureBotTokenBoilerPlate(tokenAddy).totalSupply() - amount > 0,
             "BancorContinuousToken: Requested Retire Amount Exceeds Supply"
@@ -213,13 +220,13 @@ contract CultureBotFactory is Ownable {
         );
         uint256 liquidity = bancorFormulaContract.saleTargetAmount(
             CultureBotTokenBoilerPlate(tokenAddy).totalSupply(),
-            reserveBalance(),
+            tokenToDeets[tokenAddy].fundsRaised,
             reserveWeight(),
             amount
         );
         IERC20(r_token).transfer(msg.sender, liquidity);
         CultureBotTokenBoilerPlate(tokenAddy).tokenBurn(msg.sender, amount);
-        emit Retire(msg.sender, amount, liquidity, communityId);
+        emit Retire(msg.sender, amount, liquidity);
     }
 
     /// @notice Cost of purchasing given amount of tokens
@@ -227,13 +234,12 @@ contract CultureBotFactory is Ownable {
     /// @param amount The amount of tokens to be purchased
     function purchaseCost(
         uint256 amount,
-        bytes32 communityId
+        address tokenAddy
     ) public view returns (uint256) {
-        address tokenAddy = communityToToken[communityId];
         return
             bancorFormulaContract.purchaseCost(
                 CultureBotTokenBoilerPlate(tokenAddy).totalSupply(),
-                reserveBalance(),
+                tokenToDeets[tokenAddy].fundsRaised,
                 reserveWeight(),
                 amount
             );
@@ -244,13 +250,12 @@ contract CultureBotFactory is Ownable {
     /// @param deposit The deposited amount of reserve tokens
     function purchaseTargetAmount(
         uint256 deposit,
-        bytes32 communityId
+        address tokenAddy
     ) public view returns (uint256) {
-        address tokenAddy = communityToToken[communityId];
         return
             bancorFormulaContract.purchaseTargetAmount(
                 CultureBotTokenBoilerPlate(tokenAddy).totalSupply(),
-                reserveBalance(),
+                tokenToDeets[tokenAddy].fundsRaised,
                 reserveWeight(),
                 deposit
             );
@@ -261,9 +266,8 @@ contract CultureBotFactory is Ownable {
     /// @param amount The amount of tokens to be retired
     function saleTargetAmount(
         uint256 amount,
-        bytes32 communityId
+        address tokenAddy
     ) public view returns (uint256) {
-        address tokenAddy = communityToToken[communityId];
         require(
             CultureBotTokenBoilerPlate(tokenAddy).totalSupply() - amount > 0,
             "BancorContinuousToken: Requested Retire Amount Exceeds Supply"
@@ -271,7 +275,7 @@ contract CultureBotFactory is Ownable {
         return
             bancorFormulaContract.saleTargetAmount(
                 CultureBotTokenBoilerPlate(tokenAddy).totalSupply(),
-                reserveBalance(),
+                tokenToDeets[tokenAddy].fundsRaised,
                 reserveWeight(),
                 amount
             );
