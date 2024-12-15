@@ -2,9 +2,9 @@
 pragma solidity ^0.8.24;
 
 import {Test} from "forge-std/Test.sol";
-import {CultureBotTokenBoilerPlate} from "src/CultureBotTokenBoilerPlate.sol";
+import {CultureBotTokenBoilerPlate} from "src/Bancor/CultureBotTokenBoilerPlate.sol";
 import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
-import {CultureBotFactory} from "src/CultureBotFactory.sol";
+import {CultureBotFactory} from "src/Bancor/CultureBotFactory.sol";
 
 contract CultureBotTokenBoilerPlateTest is Test {
     CultureBotTokenBoilerPlate public token;

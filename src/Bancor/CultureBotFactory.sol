@@ -73,8 +73,8 @@ contract CultureBotFactory is Ownable {
         string memory symbol_,
         address[] memory allocationAddys,
         uint256[] memory allocationAmount
-    ) public payable {
-        address newToken = address(
+    ) public payable returns (address newToken) {
+        newToken = address(
             new CultureBotTokenBoilerPlate(
                 name_,
                 symbol_,
@@ -176,7 +176,7 @@ contract CultureBotFactory is Ownable {
 
         uint256 amount = bancorFormulaContract.purchaseTargetAmount(
             CultureBotTokenBoilerPlate(tokenAddy).totalSupply(),
-            tokenToDeets[tokenAddy].fundsRaised,
+            (tokenToDeets[tokenAddy].fundsRaised + 1),
             reserveWeight(),
             deposit
         );
@@ -220,7 +220,7 @@ contract CultureBotFactory is Ownable {
         );
         uint256 liquidity = bancorFormulaContract.saleTargetAmount(
             CultureBotTokenBoilerPlate(tokenAddy).totalSupply(),
-            tokenToDeets[tokenAddy].fundsRaised,
+            (tokenToDeets[tokenAddy].fundsRaised + 1),
             reserveWeight(),
             amount
         );
@@ -239,7 +239,7 @@ contract CultureBotFactory is Ownable {
         return
             bancorFormulaContract.purchaseCost(
                 CultureBotTokenBoilerPlate(tokenAddy).totalSupply(),
-                tokenToDeets[tokenAddy].fundsRaised,
+                (tokenToDeets[tokenAddy].fundsRaised + 1),
                 reserveWeight(),
                 amount
             );
@@ -255,7 +255,7 @@ contract CultureBotFactory is Ownable {
         return
             bancorFormulaContract.purchaseTargetAmount(
                 CultureBotTokenBoilerPlate(tokenAddy).totalSupply(),
-                tokenToDeets[tokenAddy].fundsRaised,
+                (tokenToDeets[tokenAddy].fundsRaised + 1),
                 reserveWeight(),
                 deposit
             );
@@ -275,7 +275,7 @@ contract CultureBotFactory is Ownable {
         return
             bancorFormulaContract.saleTargetAmount(
                 CultureBotTokenBoilerPlate(tokenAddy).totalSupply(),
-                tokenToDeets[tokenAddy].fundsRaised,
+                (tokenToDeets[tokenAddy].fundsRaised + 1),
                 reserveWeight(),
                 amount
             );

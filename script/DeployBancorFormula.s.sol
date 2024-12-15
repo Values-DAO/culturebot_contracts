@@ -3,7 +3,7 @@ pragma solidity 0.8.24;
 
 import {Script} from "forge-std/Script.sol";
 
-import {BancorFormula} from "src/BancorFormula/BancorFormula.sol";
+import {BancorFormula} from "src/Bancor/BancorFormula/BancorFormula.sol";
 import {console2} from "forge-std/console2.sol";
 
 contract DeployBancorFormula is Script {

@@ -46,7 +46,7 @@ contract CultureBotTokenBoilerPlate is ERC20, Ownable {
     }
 
     function tokenMint(address caller, uint256 amount) external onlyFactory {
-        if (totalSupply() + amount >= max_supply)
+        if (totalSupply() + amount > max_supply)
             revert TBP__CantExceedMaxSupply();
         _mint(caller, amount);
     }

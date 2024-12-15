@@ -3,9 +3,9 @@ pragma solidity 0.8.24;
 
 import {Script} from "forge-std/Script.sol";
 
-import {BancorFormula} from "src/BancorFormula/BancorFormula.sol";
+import {BancorFormula} from "src/Bancor/BancorFormula/BancorFormula.sol";
 import {console2} from "forge-std/console2.sol";
-import {CultureBotTokenBoilerPlate} from "src/CultureBotTokenBoilerPlate.sol";
+import {CultureBotTokenBoilerPlate} from "src/Bancor/CultureBotTokenBoilerPlate.sol";
 
 contract DeployCultureBotToken is Script {
     uint256 constant MAXIMUM_SUPPLY = 100000000000;
