@@ -4,6 +4,7 @@ pragma solidity 0.8.24;
 
 import {CultureBotTokenBoilerPlate} from "src/ExponentialBC/CultureTokenBoilerPlate.sol";
 import {AggregatorV3Interface} from "chainlink-brownie-contracts/contracts/src/v0.8/shared/interfaces/AggregatorV3Interface.sol";
+import {UD60x18, ud, ln, exp} from "prb-math/UD60x18.sol";
 
 contract CultureBotBondingCurve {
     error CBP__InvalidTokenAddress();
@@ -113,43 +114,36 @@ contract CultureBotBondingCurve {
         return 1;
     }
 
-    // Function to calculate the cost in wei for purchasing `tokensToBuy` starting from `currentSupply`
+    // Cost formula: (P0 / k) * (e^(k * (activeSupply + tokensToBuy)) - e^(k * activeSupply))
     function calculateCost(
         uint256 _activeSupply,
         uint256 tokensToBuy
     ) public pure returns (uint256) {
-        // Calculate the exponent parts scaled to avoid precision loss
-        uint256 exponent1 = (K * (_activeSupply + tokensToBuy)) / 10 ** 18;
+        UD60x18 p0 = ud(INITIAL_PRICE_IN_ETH * DECIMALS);
 
-        uint256 exponent2 = (K * _activeSupply) / 10 ** 18;
+        UD60x18 s = ud(_activeSupply);
+        UD60x18 t = ud(tokensToBuy);
+        UD60x18 kud = ud(K);
 
-        // Calculate e^(kx) using the exp function
-        uint256 exp1 = exponent(exponent1);
+        UD60x18 term1 = exp(kud.mul(s.add(t)));
 
-        uint256 _exp2 = exponent(exponent2);
+        UD60x18 term2 = exp(kud.mul(s));
 
-        // Cost formula: (P0 / k) * (e^(k * (currentSupply + tokensToBuy)) - e^(k * currentSupply))
-        // We use (P0 * 10^18) / k to keep the division safe from zero
-        uint256 cost = (INITIAL_PRICE_IN_ETH * 10 ** 18 * (exp1 - _exp2)) / K; // Adjust for k scaling without dividing by zero
-        return cost;
+        UD60x18 cost = p0.div(kud).mul(term1.sub(term2));
+
+        return (cost.unwrap());
     }
 
-    // Improved helper function to calculate e^x for larger x using a Taylor series approximation
-    function exponent(uint256 x) public pure returns (uint256) {
-        uint256 sum = 10 ** 18; // Start with 1 * 10^18 for precision
-        uint256 term = 10 ** 18; // Initial term = 1 * 10^18
-        uint256 xPower = x; // Initial power of x
+    function calculateTokensForEth(
+        uint256 ethAmount
+    ) public pure returns (uint256 tokenQuantity) {
+        // Convert inputs to UD60x18 for high-precision math
+        UD60x18 cost = ud(ethAmount);
+        UD60x18 p0 = ud(INITIAL_PRICE_IN_ETH);
+        UD60x18 kud = ud(K);
 
-        for (uint256 i = 1; i <= 20; i++) {
-            // Increase iterations for better accuracy
-            term = (term * xPower) / (i * 10 ** 18); // x^i / i!
-            sum += term;
-
-            // Prevent overflow and unnecessary calculations
-            if (term < 1) break;
-        }
-
-        return sum;
+        UD60x18 tokens = ln(cost.mul(kud).div(p0)).div(kud);
+        return tokens.unwrap();
     }
 
     function calculateInitialPrice(

@@ -109,15 +109,6 @@ contract CultureBotBondingCurveTest is Test {
         assertGt(cost, 0, "Cost should be positive");
     }
 
-    // Test Exponential Function
-    function testExpFunction() public {
-        uint256 x = 1 * 10 ** 18; // 1 in scaled precision
-        uint256 result = bondingCurve.exp(x);
-
-        // Basic sanity checks for exponential function
-        assertGt(result, 10 ** 18, "Exp result should be greater than 1");
-    }
-
     // Test Buying Tokens
     function test_buyCommunity_token() public {
         // Fund the contract with ETH
@@ -128,8 +119,10 @@ contract CultureBotBondingCurveTest is Test {
         uint256 requiredEth = bondingCurve.calculateCost(0, tokenQty);
         console.log("requiredEth:", requiredEth);
 
-        // vm.prank(address(bondingCurve));
-        // memeToken.approve(user1, BONDINGCURVE_SUPPLY);
+        console.log(
+            "numTokensForEth:",
+            bondingCurve.calculateTokensForEth(requiredEth)
+        ); //835732618383544901
 
         // Buy tokens
         vm.prank(user1);
