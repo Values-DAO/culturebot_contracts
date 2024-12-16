@@ -134,16 +134,33 @@ contract CultureBotBondingCurve {
         return (cost.unwrap());
     }
 
+    //y= (1/k)*ln( (k⋅cost/P0*e^kx)+1)
     function calculateTokensForEth(
+        uint256 _activeSupply,
         uint256 ethAmount
     ) public pure returns (uint256 tokenQuantity) {
-        // Convert inputs to UD60x18 for high-precision math
+        // Convert inputs to UD60x18
         UD60x18 cost = ud(ethAmount);
         UD60x18 p0 = ud(INITIAL_PRICE_IN_ETH);
         UD60x18 kud = ud(K);
+        UD60x18 xud = ud(_activeSupply);
 
-        UD60x18 tokens = ln(cost.mul(kud).div(p0)).div(kud);
-        return tokens.unwrap();
+        // Calculate e^(kx)
+        UD60x18 expKx = exp(kud.mul(xud));
+
+        // Calculate the numerator: k * cost
+        UD60x18 numerator = kud.mul(cost);
+
+        // Calculate the denominator: P0 * e^(kx)
+        UD60x18 denominator = p0.mul(expKx);
+
+        // Calculate the argument of the natural log: (numerator / denominator) + 1
+        UD60x18 lnArgument = numerator.div(denominator).add(ud(1 ether));
+
+        // Calculate y using the formula: y = (1 / k) * ln(lnArgument)
+        UD60x18 y = ln(lnArgument).div(kud);
+
+        return y.unwrap();
     }
 
     function calculateInitialPrice(

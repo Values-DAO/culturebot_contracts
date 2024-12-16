@@ -121,8 +121,9 @@ contract CultureBotBondingCurveTest is Test {
 
         console.log(
             "numTokensForEth:",
-            bondingCurve.calculateTokensForEth(requiredEth)
+            bondingCurve.calculateTokensForEth(0, requiredEth)
         ); //835732618383544901
+        //835576465958490911
 
         // Buy tokens
         vm.prank(user1);
