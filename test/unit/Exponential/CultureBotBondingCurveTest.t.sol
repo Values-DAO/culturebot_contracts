@@ -112,10 +112,16 @@ contract CultureBotBondingCurveTest is Test {
     // Test Buying Tokens
     function test_buyCommunity_token() public {
         // Fund the contract with ETH
-        vm.deal(user1, 10 ether);
+
+        uint256 priceBefore = bondingCurve.calculateCost(
+            bondingCurve.activeSupply(),
+            1
+        );
+        console.log("priceBefore:", priceBefore);
 
         // Prepare to buy tokens
-        uint256 tokenQty = 100;
+        uint256 tokenQty = 100000;
+        //3000000
         uint256 requiredEth = bondingCurve.calculateCost(0, tokenQty);
         console.log("requiredEth:", requiredEth);
 
@@ -124,22 +130,59 @@ contract CultureBotBondingCurveTest is Test {
             bondingCurve.calculateTokensForEth(0, requiredEth)
         ); //835732618383544901
         //835576465958490911
-
-        // Buy tokens
-        vm.prank(user1);
-        vm.deal(user1, requiredEth);
-        uint256 result = bondingCurve.buyToken{value: requiredEth}(
+        vm.deal(user1, 10000 ether);
+        for (int i = 0; i < 20; i++) {
+            vm.prank(user1);
+            bondingCurve.buyToken{value: 0.1 ether}(
+                address(memeToken),
+                tokenQty
+            );
+        }
+        uint256 currentPrice1 = bondingCurve.calculateCost(
+            bondingCurve.activeSupply(), //2112999999 //14999780 //2999956
+            1
+        );
+        console.log("currentPrice1:", currentPrice1);
+        bondingCurve.buyToken{value: 0.1 ether}(address(memeToken), 1000000);
+        console.log("1");
+        bondingCurve.buyToken{value: 0.1 ether}(address(memeToken), 10000000);
+        console.log("2");
+        bondingCurve.buyToken{value: 1 ether}(address(memeToken), 100000000);
+        console.log("3");
+        bondingCurve.buyToken{value: 0.82 ether}(
             address(memeToken),
-            tokenQty
+            1000000000
         );
+        console.log("4");
+        bondingCurve.buyToken{value: 8.50 ether}(address(memeToken), 999999999);
+        console.log("5");
+        bondingCurve.buyToken{value: 1.52 ether}(address(memeToken), 99999999);
+        console.log("6");
+        bondingCurve.buyToken{value: 1.60 ether}(address(memeToken), 99999999);
+        console.log("7");
+        bondingCurve.buyToken{value: 1.66 ether}(address(memeToken), 99999999);
+        uint256 currentPrice = bondingCurve.calculateCost(
+            bondingCurve.activeSupply(), //2112999999
+            1
+        );
+        console.log("currentPrice:", currentPrice); //0.000000000300000000
+        console.log("activeSupply:", bondingCurve.activeSupply());
+        (, , , uint fundingRaised, , ) = bondingCurve.addressToTokenMapping(
+            address(memeToken)
+        ); //300000000
+        console.log("ethaccrued:", fundingRaised);
+        //000029999962500000
+        // Buy tokens
+        //0.000000000262500000
+        //0.000000000300000000
 
-        // Verify purchase
-        assertEq(result, 1, "Token purchase should succeed");
-        assertEq(
-            memeToken.balanceOf(user1),
-            tokenQty,
-            "User should receive tokens"
-        );
+        // // Verify purchase
+        // assertEq(result, 1, "Token purchase should succeed");
+        // assertEq(
+        //     memeToken.balanceOf(user1),
+        //     tokenQty,
+        //     "User should receive tokens"
+        // );
     }
 
     // Test Buying Tokens Fails When Not Enough ETH

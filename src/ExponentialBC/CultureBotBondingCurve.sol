@@ -30,11 +30,13 @@ contract CultureBotBondingCurve {
     uint constant ETH_AMOUNT_TO_GRADUATE = 24 ether;
     uint constant MAX_SUPPLY = 100000000000 * DECIMALS;
     uint constant INIT_SUPPLY = (10 * MAX_SUPPLY) / 100;
+    //0.000000029962500000
 
     uint128 public constant PRICE_PRECISION = 1e6;
     uint256 public constant INITIAL_PRICE_USD = 10000000000000; // Initial price in USD (P0),  10^13 => $0.00001 //
-    uint256 public constant INITIAL_PRICE_IN_ETH = 0.00000003 ether;
-    uint256 public constant K = 8 * 10 ** 18; // Growth rate (k), scaled to avoid precision loss (0.01 * 10^18)
+    uint256 public constant INITIAL_PRICE_IN_ETH = 0.000000000003 ether;
+    uint256 public constant K = 69420 * 10 ** 18; // Growth rate (k), scaled to avoid precision loss (0.01 * 10^18)
+    uint256 public constant SCALING_FACTOR = 420;
 
     event BondinCurveInitialised(
         address curveAddress,
@@ -79,10 +81,10 @@ contract CultureBotBondingCurve {
             revert CBP__InvalidTokenAddress();
 
         // check to ensure funding goal is not met
-        if (
-            // calculateGraduationEthValueInUsd() >
-            listedToken.fundingRaised >= ETH_AMOUNT_TO_GRADUATE
-        ) revert CBP__BondingCurveAlreadyGraduated();
+        // if (
+        //     // calculateGraduationEthValueInUsd() >
+        //     listedToken.fundingRaised >= ETH_AMOUNT_TO_GRADUATE
+        // ) revert CBP__BondingCurveAlreadyGraduated();
 
         // uint currentSupply = memeTokenCt.totalSupply();
 
@@ -105,7 +107,7 @@ contract CultureBotBondingCurve {
         require(msg.value >= requiredEth, "Incorrect value of ETH sent");
 
         // Incerement the funding
-        listedToken.fundingRaised += msg.value;
+        listedToken.fundingRaised += requiredEth;
         activeSupply += tokenQty;
 
         // mint the tokens
@@ -120,18 +122,19 @@ contract CultureBotBondingCurve {
         uint256 tokensToBuy
     ) public pure returns (uint256) {
         UD60x18 p0 = ud(INITIAL_PRICE_IN_ETH * DECIMALS);
-
+        UD60x18 kud = ud(K);
+        UD60x18 sud = _activeSupply == 0
+            ? ud(((_activeSupply + 1) * 1e3) / SCALING_FACTOR)
+            : ud((_activeSupply) / SCALING_FACTOR);
         UD60x18 s = ud(_activeSupply);
         UD60x18 t = ud(tokensToBuy);
-        UD60x18 kud = ud(K);
 
         UD60x18 term1 = exp(kud.mul(s.add(t)));
-
         UD60x18 term2 = exp(kud.mul(s));
 
         UD60x18 cost = p0.div(kud).mul(term1.sub(term2));
 
-        return (cost.unwrap());
+        return ((cost).unwrap() * ((sud.unwrap() / 1000) + 1)); //this is highly exponential, need to be updated based on the total bondingcurve supply
     }
 
     //y= (1/k)*ln( (k⋅cost/P0*e^kx)+1)

@@ -5,6 +5,7 @@ import {CultureBotTokenBoilerPlate} from "src/Bancor/CultureBotTokenBoilerPlate.
 import {BancorFormula} from "src/Bancor/BancorFormula/BancorFormula.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {console} from "forge-std/console.sol";
 
 contract CultureBotFactory is Ownable {
     //error
@@ -31,7 +32,7 @@ contract CultureBotFactory is Ownable {
     uint128 public constant GRADUATION_MC = 69420;
     uint256 public constant MAXIMUM_SUPPLY = 100_000_000_000;
     uint256 public constant INITIAL_ALLOCATION = 100_000_000_00;
-    uint256 public constant PRICE_PRECISION = 1e9;
+    uint256 public constant PRICE_PRECISION = 1e16;
 
     event Initialised(
         address creator,
@@ -125,6 +126,8 @@ contract CultureBotFactory is Ownable {
 
     function price(address tokenAddy) public view returns (uint256) {
         uint256 tokenPerDollar = purchaseTargetAmount(1, tokenAddy);
+        console.log("tokensPerDollar:", tokenPerDollar);
+        //4640856960
         return ((1 * PRICE_PRECISION) / tokenPerDollar);
     }
 
