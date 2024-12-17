@@ -5,7 +5,6 @@ pragma solidity 0.8.24;
 import {CultureBotTokenBoilerPlate} from "src/ExponentialBC/CultureTokenBoilerPlate.sol";
 import {AggregatorV3Interface} from "chainlink-brownie-contracts/contracts/src/v0.8/shared/interfaces/AggregatorV3Interface.sol";
 import {UD60x18, ud, ln, exp} from "prb-math/UD60x18.sol";
-import {console} from "forge-std/console.sol";
 
 contract CultureBotBondingCurve {
     error CBP__InvalidTokenAddress();
@@ -100,7 +99,6 @@ contract CultureBotBondingCurve {
         // calculate the cost for purchasing tokenQty tokens as per the exponential bonding curve formula
 
         uint requiredEth = calculateCost(activeSupply, tokenQty);
-        console.log("requiredEth:", requiredEth);
 
         // check if user has sent correct value of eth to facilitate this purchase
         require(msg.value >= requiredEth, "Incorrect value of ETH sent");
