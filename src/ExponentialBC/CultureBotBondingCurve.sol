@@ -5,10 +5,12 @@ pragma solidity 0.8.24;
 import {CultureBotTokenBoilerPlate} from "src/ExponentialBC/CultureTokenBoilerPlate.sol";
 import {AggregatorV3Interface} from "chainlink-brownie-contracts/contracts/src/v0.8/shared/interfaces/AggregatorV3Interface.sol";
 import {UD60x18, ud, ln, exp} from "prb-math/UD60x18.sol";
+import {console} from "forge-std/console.sol";
 
 contract CultureBotBondingCurve {
     error CBP__InvalidTokenAddress();
     error CBP__BondingCurveAlreadyGraduated();
+    error CBP__InvalidLogAmount();
 
     struct CommunityTokenDeets {
         string name;
@@ -30,13 +32,13 @@ contract CultureBotBondingCurve {
     uint constant ETH_AMOUNT_TO_GRADUATE = 24 ether;
     uint constant MAX_SUPPLY = 100000000000 * DECIMALS;
     uint constant INIT_SUPPLY = (10 * MAX_SUPPLY) / 100;
-    //0.000000029962500000
 
     uint128 public constant PRICE_PRECISION = 1e6;
     uint256 public constant INITIAL_PRICE_USD = 10000000000000; // Initial price in USD (P0),  10^13 => $0.00001 //
-    uint256 public constant INITIAL_PRICE_IN_ETH = 0.000000000003 ether;
+    uint256 public constant INITIAL_PRICE_IN_ETH = 0.000000000321389 ether; //0.000000005146224
     uint256 public constant K = 69420 * 10 ** 18; // Growth rate (k), scaled to avoid precision loss (0.01 * 10^18)
-    uint256 public constant SCALING_FACTOR = 420;
+    uint256 public constant SCALING_FACTOR = 694200000;
+    uint256 public constant BONDINGCURVE_TOTAL_SUPPLY = 54_000_000_000;
 
     event BondinCurveInitialised(
         address curveAddress,
@@ -98,6 +100,7 @@ contract CultureBotBondingCurve {
         // calculate the cost for purchasing tokenQty tokens as per the exponential bonding curve formula
 
         uint requiredEth = calculateCost(activeSupply, tokenQty);
+        console.log("requiredEth:", requiredEth);
 
         // check if user has sent correct value of eth to facilitate this purchase
         require(msg.value >= requiredEth, "Incorrect value of ETH sent");
@@ -110,7 +113,9 @@ contract CultureBotBondingCurve {
         memeTokenCt.transfer(msg.sender, tokenQty_scaled);
 
         return 1;
-    }
+    } //0.000000000321384370
+
+    //0.000000005146224000
 
     // Cost formula: (P0 / k) * (e^(k * (activeSupply + tokensToBuy)) - e^(k * activeSupply))
     function calculateCost(
@@ -119,9 +124,8 @@ contract CultureBotBondingCurve {
     ) public pure returns (uint256) {
         UD60x18 p0 = ud(INITIAL_PRICE_IN_ETH * DECIMALS);
         UD60x18 kud = ud(K);
-        UD60x18 sud = _activeSupply == 0
-            ? ud(((_activeSupply + 1) * 1e3) / SCALING_FACTOR)
-            : ud((_activeSupply) / SCALING_FACTOR);
+        UD60x18 dynamicScaleFactor = calculateDynamicScaleFactor(_activeSupply);
+
         UD60x18 s = ud(_activeSupply);
         UD60x18 t = ud(tokensToBuy);
 
@@ -130,7 +134,7 @@ contract CultureBotBondingCurve {
 
         UD60x18 cost = p0.div(kud).mul(term1.sub(term2));
 
-        return ((cost).unwrap() * ((sud.unwrap() / 1000) + 1)); //this is highly exponential, need to be updated based on the total bondingcurve supply
+        return ((cost).unwrap() * (dynamicScaleFactor.unwrap() + 1)); //this is highly exponential, need to be updated based on the total bondingcurve supply
     }
 
     //y= (1/k)*ln( (k⋅cost/P0*e^kx)+1)
@@ -162,6 +166,22 @@ contract CultureBotBondingCurve {
         return y.unwrap();
     }
 
+    function calculateDynamicScaleFactor(
+        uint256 _activeSupply
+    ) internal pure returns (UD60x18) {
+        // Logarithmic Scaling with Supply Proximity
+        UD60x18 supplyRatio = ud(
+            (_activeSupply * 1e18) / BONDINGCURVE_TOTAL_SUPPLY
+        );
+
+        // Multi-Phase Scaling Logic
+        UD60x18 logComponent = ud(log2(_activeSupply + 1));
+        UD60x18 proximityFactor = supplyRatio.pow(ud(5e17)); // Square root-like progression
+
+        // Combine Scaling Components
+        return logComponent.mul(proximityFactor);
+    }
+
     function calculateInitialPrice(
         uint256 initialPriceUsd
     ) internal view returns (uint256 initialPriceInEth) {
@@ -179,5 +199,31 @@ contract CultureBotBondingCurve {
         currentBCEthValue =
             (uint256(ethPrice) * currentBCEthAmount) /
             PRICE_PRECISION;
+    }
+
+    function log2(uint256 x) internal pure returns (uint256) {
+        if (x <= 0) revert CBP__InvalidLogAmount();
+        uint256 y;
+        assembly {
+            let temp := x
+            temp := sub(temp, 1)
+            temp := or(temp, div(temp, 2))
+            temp := or(temp, div(temp, 4))
+            temp := or(temp, div(temp, 8))
+            temp := or(temp, div(temp, 16))
+            temp := or(temp, div(temp, 32))
+            temp := or(temp, div(temp, 64))
+            temp := or(temp, div(temp, 128))
+            temp := or(temp, div(temp, 256))
+
+            // base-2 logarithm via De Bruijn sequence
+            y := mul(gt(temp, 0xFFFFFFFF), 32)
+            y := or(y, mul(gt(shr(y, temp), 0xFFFF), 16))
+            y := or(y, mul(gt(shr(y, temp), 0xFF), 8))
+            y := or(y, mul(gt(shr(y, temp), 0xF), 4))
+            y := or(y, mul(gt(shr(y, temp), 0x3), 2))
+            y := or(y, mul(gt(shr(y, temp), 0x1), 1))
+        }
+        return y;
     }
 }

@@ -133,7 +133,7 @@ contract CultureBotBondingCurveTest is Test {
         vm.deal(user1, 10000 ether);
         for (int i = 0; i < 20; i++) {
             vm.prank(user1);
-            bondingCurve.buyToken{value: 0.1 ether}(
+            bondingCurve.buyToken{value: 0.6 ether}(
                 address(memeToken),
                 tokenQty
             );
@@ -147,24 +147,34 @@ contract CultureBotBondingCurveTest is Test {
         console.log("1");
         bondingCurve.buyToken{value: 0.1 ether}(address(memeToken), 10000000);
         console.log("2");
-        bondingCurve.buyToken{value: 1 ether}(address(memeToken), 100000000);
+        bondingCurve.buyToken{value: 0.4 ether}(address(memeToken), 100000000);
         console.log("3");
-        bondingCurve.buyToken{value: 0.82 ether}(
+        bondingCurve.buyToken{value: 0.65 ether}(
             address(memeToken),
             1000000000
         );
         console.log("4");
-        bondingCurve.buyToken{value: 8.50 ether}(address(memeToken), 999999999);
+        bondingCurve.buyToken{value: 1.61 ether}(address(memeToken), 999999999);
         console.log("5");
-        bondingCurve.buyToken{value: 1.52 ether}(address(memeToken), 99999999);
+        bondingCurve.buyToken{value: 0.193 ether}(address(memeToken), 99999999);
         console.log("6");
-        bondingCurve.buyToken{value: 1.60 ether}(address(memeToken), 99999999);
+        bondingCurve.buyToken{value: 0.63 ether}(address(memeToken), 99999999);
         console.log("7");
-        bondingCurve.buyToken{value: 1.66 ether}(address(memeToken), 99999999);
+        bondingCurve.buyToken{value: 0.226 ether}(address(memeToken), 99999999);
+        for (int i = 0; i < 7; i++) {
+            vm.prank(user1);
+
+            bondingCurve.buyToken{value: 3 ether}(
+                address(memeToken),
+                1000000000
+            );
+        } //0.000000004502362662
+        //0.00000000032138437
+        //11412999996
         uint256 currentPrice = bondingCurve.calculateCost(
             bondingCurve.activeSupply(), //2112999999
             1
-        );
+        ); //6412999996
         console.log("currentPrice:", currentPrice); //0.000000000300000000
         console.log("activeSupply:", bondingCurve.activeSupply());
         (, , , uint fundingRaised, , ) = bondingCurve.addressToTokenMapping(
