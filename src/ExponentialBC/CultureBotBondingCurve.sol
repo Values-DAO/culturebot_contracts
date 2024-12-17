@@ -81,12 +81,8 @@ contract CultureBotBondingCurve {
             revert CBP__InvalidTokenAddress();
 
         // check to ensure funding goal is not met
-        // if (
-        //     // calculateGraduationEthValueInUsd() >
-        //     listedToken.fundingRaised >= ETH_AMOUNT_TO_GRADUATE
-        // ) revert CBP__BondingCurveAlreadyGraduated();
-
-        // uint currentSupply = memeTokenCt.totalSupply();
+        if (listedToken.fundingRaised >= ETH_AMOUNT_TO_GRADUATE)
+            revert CBP__BondingCurveAlreadyGraduated();
 
         uint available_qty = MAX_SUPPLY - INIT_SUPPLY;
 
@@ -100,7 +96,7 @@ contract CultureBotBondingCurve {
         );
 
         // calculate the cost for purchasing tokenQty tokens as per the exponential bonding curve formula
-        // uint currentSupplyScaled = (currentSupply - INIT_SUPPLY) / DECIMALS;
+
         uint requiredEth = calculateCost(activeSupply, tokenQty);
 
         // check if user has sent correct value of eth to facilitate this purchase
