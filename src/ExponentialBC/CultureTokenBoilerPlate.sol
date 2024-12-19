@@ -4,8 +4,6 @@ pragma solidity ^0.8.24;
 
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {BitMaps} from "@openzeppelin/contracts/utils/structs/BitMaps.sol";
-import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 
 contract CultureBotTokenBoilerPlate is ERC20, Ownable {
     //error
@@ -17,8 +15,6 @@ contract CultureBotTokenBoilerPlate is ERC20, Ownable {
     string private _symbol;
     uint8 private immutable _decimals;
     uint256 public immutable max_supply;
-    bytes32 public i_merkleRoot;
-    BitMaps.BitMap private rewardClaimList;
 
     address public factory;
 
@@ -55,36 +51,6 @@ contract CultureBotTokenBoilerPlate is ERC20, Ownable {
         _burn(caller, amount);
     }
 
-    function claimRewards(
-        bytes32[] calldata proof,
-        uint256 index,
-        uint256 amount
-    ) external {
-        // check if already claimed
-        require(!BitMaps.get(rewardClaimList, index), "Already claimed");
-
-        // verify proof
-        _verifyProof(proof, index, amount, msg.sender);
-
-        // set rewards as claimed
-        BitMaps.setTo(rewardClaimList, index, true);
-
-        //transfer claimable tokens
-        transferFrom(address(this), msg.sender, amount);
-    }
-
-    function _verifyProof(
-        bytes32[] memory proof,
-        uint256 index,
-        uint256 amount,
-        address addr
-    ) private view {
-        bytes32 leaf = keccak256(
-            bytes.concat(keccak256(abi.encode(addr, index, amount)))
-        );
-        require(MerkleProof.verify(proof, i_merkleRoot, leaf), "Invalid proof");
-    }
-
     function getFactory() external view returns (address) {
         return factory;
     }
@@ -94,9 +60,5 @@ contract CultureBotTokenBoilerPlate is ERC20, Ownable {
         address toAddress
     ) external onlyFactory {
         transferFrom(address(this), toAddress, amountToTransfer);
-    }
-
-    function setMerkleRoot(bytes32 newMerkleRoot) public onlyFactory {
-        i_merkleRoot = newMerkleRoot;
     }
 }

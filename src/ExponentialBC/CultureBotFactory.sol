@@ -17,7 +17,8 @@ contract CultureBotFactory {
         address deployer,
         string name,
         string symbol,
-        address tokenAddress
+        address tokenAddress,
+        address bondingCurveAddress
     );
 
     constructor(AggregatorV3Interface _v3Interface) {
@@ -40,7 +41,6 @@ contract CultureBotFactory {
             allocationAmount,
             address(this)
         );
-        emit TokenCreated(msg.sender, name, symbol, address(ct));
         CultureBotBondingCurve newBondingCurve = new CultureBotBondingCurve(
             name,
             symbol,
@@ -48,6 +48,13 @@ contract CultureBotFactory {
             0,
             address(ct),
             msg.sender
+        );
+        emit TokenCreated(
+            msg.sender,
+            name,
+            symbol,
+            address(ct),
+            address(newBondingCurve)
         );
         // In factory or token initialization
         ct.approve(address(newBondingCurve), BONDINGCURVE_SUPPLY);
