@@ -2,38 +2,66 @@
 pragma solidity ^0.8.24;
 
 import {CultureBotTokenBoilerPlate} from "src/ExponentialBC/CultureTokenBoilerPlate.sol";
-import {AggregatorV3Interface} from "chainlink-brownie-contracts/contracts/src/v0.8/shared/interfaces/AggregatorV3Interface.sol";
 import {CultureBotBondingCurve} from "./CultureBotBondingCurve.sol";
 
+/// @title CultureBot Factory
+/// @notice Factory contract for deploying new CultureBot tokens and their bonding curves
+/// @dev Handles token deployment, initial supply allocation, and bonding curve setup
 contract CultureBotFactory {
-    AggregatorV3Interface v3Interface;
+    /// @notice Custom errors for better gas efficiency and clarity
+    error CBF__InvalidAllocationLength();
+    error CBF__ZeroAddress();
+    error CBF__EmptyName();
+    error CBF__EmptySymbol();
 
-    uint constant DECIMALS = 10 ** 18;
-    uint constant MAX_SUPPLY = 100000000000 * DECIMALS;
-    uint constant INIT_SUPPLY = (10 * MAX_SUPPLY) / 100;
-    uint constant BONDINGCURVE_SUPPLY = (MAX_SUPPLY * 90) / 100;
+    /// @notice Constants for token supply calculations
+    /// @dev All values are scaled by DECIMALS (1e18)
+    uint256 private constant DECIMALS = 1e18;
+    uint256 private constant MAX_SUPPLY = 100_000_000_000 * DECIMALS;
+    uint256 private constant INIT_SUPPLY = (MAX_SUPPLY * 10) / 100; // 10% of max supply
+    uint256 private constant BONDINGCURVE_SUPPLY = (MAX_SUPPLY * 90) / 100; // 90% of max supply
 
+    /// @notice Emitted when a new token and its bonding curve are created
+    /// @param deployer Address of the token deployer
+    /// @param name Token name
+    /// @param symbol Token symbol
+    /// @param tokenAddress Address of the deployed token contract
+    /// @param bondingCurveAddress Address of the deployed bonding curve contract
     event TokenCreated(
-        address deployer,
+        address indexed deployer,
         string name,
         string symbol,
-        address tokenAddress,
-        address bondingCurveAddress
+        address indexed tokenAddress,
+        address indexed bondingCurveAddress
     );
 
-    constructor(AggregatorV3Interface _v3Interface) {
-        v3Interface = AggregatorV3Interface(_v3Interface);
-    }
-
+    /// @notice Initializes a new token with its bonding curve
+    /// @param name Token name
+    /// @param symbol Token symbol
+    /// @param description Token description
+    /// @param allocationAddys Array of addresses for initial token allocation
+    /// @param allocationAmount Array of amounts for initial token allocation
+    /// @return tokenAddress Address of the deployed token contract
+    /// @return bondingCurveAddress Address of the deployed bonding curve contract
     function initialiseToken(
-        string memory name,
-        string memory symbol,
-        string memory description,
-        address[] memory allocationAddys,
-        uint256[] memory allocationAmount
-    ) public payable returns (address, address) {
-        //should deploy the meme token, mint the initial supply to the token factory contract
-        CultureBotTokenBoilerPlate ct = new CultureBotTokenBoilerPlate(
+        string calldata name,
+        string calldata symbol,
+        string calldata description,
+        address[] calldata allocationAddys,
+        uint256[] calldata allocationAmount
+    )
+        external
+        payable
+        returns (address tokenAddress, address bondingCurveAddress)
+    {
+        // Input validation
+        if (bytes(name).length == 0) revert CBF__EmptyName();
+        if (bytes(symbol).length == 0) revert CBF__EmptySymbol();
+        if (allocationAddys.length != allocationAmount.length)
+            revert CBF__InvalidAllocationLength();
+
+        // Deploy token contract
+        CultureBotTokenBoilerPlate token = new CultureBotTokenBoilerPlate(
             name,
             symbol,
             MAX_SUPPLY,
@@ -41,25 +69,30 @@ contract CultureBotFactory {
             allocationAmount,
             address(this)
         );
-        CultureBotBondingCurve newBondingCurve = new CultureBotBondingCurve(
+
+        // Deploy bonding curve contract
+        CultureBotBondingCurve bondingCurve = new CultureBotBondingCurve(
             name,
             symbol,
             description,
-            0,
-            address(ct),
+            0, // Initial funding raised
+            address(token),
             msg.sender
         );
+
+        // Setup token permissions and mint bonding curve supply
+        token.approve(address(bondingCurve), BONDINGCURVE_SUPPLY);
+        token.tokenMint(address(bondingCurve), BONDINGCURVE_SUPPLY);
+
+        // Emit creation event
         emit TokenCreated(
             msg.sender,
             name,
             symbol,
-            address(ct),
-            address(newBondingCurve)
+            address(token),
+            address(bondingCurve)
         );
-        // In factory or token initialization
-        ct.approve(address(newBondingCurve), BONDINGCURVE_SUPPLY);
-        ct.tokenMint(address(newBondingCurve), BONDINGCURVE_SUPPLY);
 
-        return (address(ct), address(newBondingCurve));
+        return (address(token), address(bondingCurve));
     }
 }
