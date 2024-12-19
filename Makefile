@@ -47,7 +47,7 @@ deploy:
 
 
 verify:
-	@forge verify-contract --chain-id 84532 --watch --constructor-args `cast abi-encode "constructor(uint32,address,address)" "$(CW)" "$(RV_TOKEN)" "$(BANCOR_FORMULA)"` --etherscan-api-key $(ETHERSCAN_API_KEY) --compiler-version 0.8.24 0x00758750066Bb43F005E12878966ACe81603f1AE src/Bancor/CultureBotFactory.sol:CultureBotFactory
+	@forge verify-contract --chain-id 84532 --watch  --etherscan-api-key $(ETHERSCAN_API_KEY) --compiler-version 0.8.27 0x5F695228a952348a090bFe9FfC3080a52EC3a761 src/ExponentialBC/CultureBotFactory.sol:CultureBotFactory
 #@forge verify-contract --chain-id 84532 --watch --constructor-args `cast abi-encode "constructor(string,string,uint256,address[3],uint256[3],address)" "$(NAME)" "$(SYMBOL)" "$(MAX_SUPPLY)" "[$(ALLOCATION_ADDY1),$(ALLOCATION_ADDY2),$(ALLOCATION_ADDY3)]" "[$(ALLOCATIONAMOUNT1),$(ALLOCATIONAMOUNT2),$(ALLOCATIONAMOUNT3)]" "$(FACTORY)"` --etherscan-api-key $(ETHERSCAN_API_KEY) --compiler-version 0.8.24 0xe2A1A3c40dFE8e29e00f25f50C113FF9b06ac912 src/CultureBotTokenBoilerPlate.sol:CultureBotTokenBoilerPlate
 	
 
