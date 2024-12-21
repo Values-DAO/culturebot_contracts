@@ -58,7 +58,7 @@ contract CultureBotTokenBoilerPlate is ERC20, Ownable {
     function tokenTransfer(
         uint256 amountToTransfer,
         address toAddress
-    ) external onlyFactory {
+    ) external {
         transferFrom(address(this), toAddress, amountToTransfer);
     }
 }

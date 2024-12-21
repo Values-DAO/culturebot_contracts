@@ -169,7 +169,7 @@ contract CultureBotBondingCurve {
                 tickLower: tick,
                 tickUpper: maxUsableTick(tickSpacing),
                 amount0Desired: LP_SUPPLY,
-                amount1Desired: 0,
+                amount1Desired: ETH_AMOUNT_TO_GRADUATE,
                 amount0Min: 0,
                 amount1Min: 0,
                 recipient: address(this),
