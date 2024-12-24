@@ -6,11 +6,12 @@ import {AggregatorV3Interface} from "chainlink-brownie-contracts/contracts/src/v
 import {TickMath} from "v3-core/contracts/libraries/TickMath.sol";
 import {INonfungiblePositionManager, IUniswapV3Factory, IWETH9} from "./interface.sol";
 import {UD60x18, ud, ln, exp} from "prb-math/UD60x18.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 /// @title CultureBot Bonding Curve
 /// @notice Implements an exponential bonding curve with Uniswap V3 liquidity provision and this is not a complete implementation
 /// @dev Uses PRBMath for precise mathematical calculations and Chainlink for price feeds
-contract CultureBotBondingCurve {
+contract CultureBotBondingCurve is Ownable {
     using TickMath for int24;
 
     /// @notice Custom errors for better gas efficiency
@@ -78,7 +79,7 @@ contract CultureBotBondingCurve {
         uint96 fundingRaised,
         address tokenAddress,
         address creatorAddress
-    ) {
+    ) Ownable(msg.sender) {
         addressToTokenMapping[tokenAddress] = CommunityCoinDeets({
             name: name,
             symbol: symbol,
@@ -146,7 +147,7 @@ contract CultureBotBondingCurve {
         int24 tickSpacing,
         address _positionManager,
         address poolfactory
-    ) external returns (uint256 positionId) {
+    ) external onlyOwner returns (uint256 positionId) {
         if (newToken >= wethAddress) revert CBP__InvalidPoolConfiguration();
 
         IUniswapV3Factory uniswapV3Factory = IUniswapV3Factory(poolfactory);

@@ -35,7 +35,7 @@ contract CultureBotBondingCurveTest is Test {
 
         // Setup factory with mock price feed
         vm.prank(deployer);
-        factory = new CultureBotFactory(mockPriceFeed);
+        factory = new CultureBotFactory();
 
         // Create a meme token through the factory
         vm.startPrank(deployer);
@@ -65,10 +65,11 @@ contract CultureBotBondingCurveTest is Test {
         (
             string memory name,
             string memory symbol,
+            bool isGraduated,
             string memory description,
-            uint fundingRaised,
             address tokenAddress,
-            address creatorAddress
+            address creatorAddress,
+            uint fundingRaised
         ) = bondingCurve.addressToTokenMapping(communityToken);
 
         assertEq(name, "TestMemeCoin");
@@ -184,7 +185,7 @@ contract CultureBotBondingCurveTest is Test {
         ); //6412999996
         console.log("currentPrice:", currentPrice); //0.000000000300000000
         console.log("activeSupply:", bondingCurve.activeSupply());
-        (, , , uint fundingRaised, , ) = bondingCurve.addressToTokenMapping(
+        (, , , , , , uint fundingRaised) = bondingCurve.addressToTokenMapping(
             address(memeToken)
         ); //300000000
         console.log("ethaccrued:", fundingRaised);
