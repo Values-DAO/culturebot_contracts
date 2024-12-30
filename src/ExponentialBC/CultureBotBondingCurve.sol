@@ -1,17 +1,18 @@
 //SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import {CultureBotTokenBoilerPlate} from "src/ExponentialBC/CultureTokenBoilerPlate.sol";
 import {AggregatorV3Interface} from "chainlink-brownie-contracts/contracts/src/v0.8/shared/interfaces/AggregatorV3Interface.sol";
-import {TickMath} from "v3-core/contracts/libraries/TickMath.sol";
+import {CultureBotTokenBoilerPlate} from "src/ExponentialBC/CultureTokenBoilerPlate.sol";
 import {INonfungiblePositionManager, IUniswapV3Factory, IWETH9} from "./interface.sol";
-import {UD60x18, ud, ln, exp} from "prb-math/UD60x18.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {TickMath} from "v3-core/contracts/libraries/TickMath.sol";
+import {UD60x18, ud, ln, exp} from "prb-math/UD60x18.sol";
+import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 
 /// @title CultureBot Bonding Curve
 /// @notice Implements an exponential bonding curve with Uniswap V3 liquidity provision and this is not a complete implementation
 /// @dev Uses PRBMath for precise mathematical calculations and Chainlink for price feeds
-contract CultureBotBondingCurve is Ownable {
+contract CultureBotBondingCurve is Ownable, IERC721Receiver {
     using TickMath for int24;
 
     /// @notice Custom errors for better gas efficiency
@@ -293,8 +294,22 @@ contract CultureBotBondingCurve is Ownable {
     /// @dev Ensures tick is aligned with spacing
     function maxUsableTick(int24 tickSpacing) internal pure returns (int24) {
         unchecked {
-            return (TickMath.MAX_TICK / tickSpacing);
+            return (TickMath.MAX_TICK / tickSpacing) * tickSpacing;
         }
+    }
+
+    /// @notice Handle the receipt of an NFT
+    /// @dev The ERC721 smart contract calls this function on the recipient
+    ///      after a `transfer`. This function MAY throw to revert and reject the
+    ///      transfer. Return of other than the magic value MUST result in the
+    ///      transaction being reverted.
+    function onERC721Received(
+        address,
+        address,
+        uint256,
+        bytes calldata
+    ) external pure override returns (bytes4) {
+        return this.onERC721Received.selector;
     }
 
     /// @notice Calculate the base-2 logarithm of a number using bit manipulation

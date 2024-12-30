@@ -35,6 +35,7 @@ contract CultureBotBondingCurveTest is Test {
     uint24 constant FEE = 3000; // 0.3%
     int24 constant TICK_SPACING = 60;
     int24 constant INITIAL_TICK = -60; //
+    int24 constant MAX_TICK = 887272;
 
     event PoolConfigured(
         address indexed token,
@@ -446,7 +447,7 @@ contract CultureBotBondingCurveTest is Test {
         uint256 beforeWETHBalance = IWETH9(WETH).balanceOf(
             address(bondingCurve)
         );
-
+        vm.prank(address(factory));
         bondingCurve.configurePool(
             FEE,
             INITIAL_TICK,
