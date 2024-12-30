@@ -81,7 +81,6 @@ contract CultureBotFactory {
         );
 
         // Setup token permissions and mint bonding curve supply
-        token.approve(address(bondingCurve), BONDINGCURVE_SUPPLY);
         token.tokenMint(address(bondingCurve), BONDINGCURVE_SUPPLY);
 
         // Emit creation event

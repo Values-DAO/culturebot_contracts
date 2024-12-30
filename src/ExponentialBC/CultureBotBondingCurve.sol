@@ -21,7 +21,6 @@ contract CultureBotBondingCurve is Ownable {
     error CBP__SupplyCapExceededAlready();
     error CBP__BondingCurveAlreadyGraduated();
     error CBP__InsufficientAvailableSupply();
-    error CBP__InvalidPoolConfiguration();
 
     /// @notice Struct containing community coin details
     /// @dev Packed for optimal storage
@@ -148,35 +147,47 @@ contract CultureBotBondingCurve is Ownable {
         address _positionManager,
         address poolfactory
     ) external onlyOwner returns (uint256 positionId) {
-        if (newToken >= wethAddress) revert CBP__InvalidPoolConfiguration();
+        CommunityCoinDeets storage listedToken = addressToTokenMapping[
+            newToken
+        ];
+        (address token0, address token1) = newToken < wethAddress
+            ? (newToken, wethAddress)
+            : (wethAddress, newToken);
+
+        // Determine correct amounts based on token order
+        (uint256 amount0Desired, uint256 amount1Desired) = newToken <
+            wethAddress
+            ? (LP_SUPPLY * DECIMALS, listedToken.fundingRaised)
+            : (listedToken.fundingRaised, LP_SUPPLY * DECIMALS);
 
         IUniswapV3Factory uniswapV3Factory = IUniswapV3Factory(poolfactory);
         INonfungiblePositionManager positionManager = INonfungiblePositionManager(
                 _positionManager
             );
 
-        IWETH9(wethAddress).deposit{value: address(this).balance}();
+        IWETH9(wethAddress).deposit{value: listedToken.fundingRaised}();
 
         uint160 sqrtPriceX96 = tick.getSqrtRatioAtTick();
         address pool = uniswapV3Factory.createPool(newToken, wethAddress, fee);
         IUniswapV3Factory(pool).initialize(sqrtPriceX96);
 
-        // Create position
-        (positionId, , , ) = positionManager.mint(
-            INonfungiblePositionManager.MintParams({
-                token0: newToken,
-                token1: wethAddress,
+        INonfungiblePositionManager.MintParams
+            memory params = INonfungiblePositionManager.MintParams({
+                token0: token0,
+                token1: token1,
                 fee: fee,
                 tickLower: tick,
                 tickUpper: maxUsableTick(tickSpacing),
-                amount0Desired: LP_SUPPLY,
-                amount1Desired: ETH_AMOUNT_TO_GRADUATE,
+                amount0Desired: amount0Desired,
+                amount1Desired: amount1Desired,
                 amount0Min: 0,
                 amount1Min: 0,
                 recipient: address(this),
                 deadline: block.timestamp
-            })
-        );
+            });
+
+        // Create position
+        (positionId, , , ) = positionManager.mint(params);
 
         emit PoolConfigured(newToken, wethAddress, positionId);
     }
@@ -282,7 +293,7 @@ contract CultureBotBondingCurve is Ownable {
     /// @dev Ensures tick is aligned with spacing
     function maxUsableTick(int24 tickSpacing) internal pure returns (int24) {
         unchecked {
-            return (TickMath.MAX_TICK / tickSpacing) * tickSpacing;
+            return (TickMath.MAX_TICK / tickSpacing);
         }
     }
 
