@@ -62,7 +62,8 @@ contract CultureBotBondingCurve is Ownable, IERC721Receiver {
         uint256 amount,
         uint256 cost,
         uint256 currentTokenPrice,
-        uint256 currentTokenSupply
+        uint256 currentTokenSupply,
+        uint256 fundingRaised
     );
     event PoolConfigured(
         address indexed token,
@@ -129,7 +130,8 @@ contract CultureBotBondingCurve is Ownable, IERC721Receiver {
             tokenQty_scaled,
             requiredEth,
             calculateCost(1),
-            activeSupply
+            activeSupply,
+            listedToken.fundingRaised
         );
         return 1;
     }
