@@ -22,7 +22,7 @@ contract CultureBotBondingCurveTest is Test {
     // Constants from the original contract
     uint256 constant MAX_SUPPLY = 100000000000 * 10 ** 18;
     uint256 constant ETH_AMOUNT_TO_GRADUATE = 24 ether;
-    uint256 constant INIT_SUPPLY = (10 * MAX_SUPPLY) / 100;
+    uint256 constant INIT_SUPPLY = (10 * MAX_SUPPLY) / (100 * 10 ** 18);
     uint constant BONDINGCURVE_SUPPLY = (MAX_SUPPLY * 90) / 100;
     address constant WETH = 0x4200000000000000000000000000000000000006;
     address constant UNISWAP_V3_FACTORY =
@@ -35,7 +35,7 @@ contract CultureBotBondingCurveTest is Test {
     uint24 constant FEE = 3000; // 0.3%
     int24 constant TICK_SPACING = 60;
     int24 constant INITIAL_TICK = -60; //
-    int24 constant MAX_TICK = 887272;
+    int24 constant MAX_TICK = 600;
 
     event PoolConfigured(
         address indexed token,
@@ -89,7 +89,7 @@ contract CultureBotBondingCurveTest is Test {
             address tokenAddress,
             address creatorAddress,
             uint fundingRaised
-        ) = bondingCurve.addressToTokenMapping(communityToken);
+        ) = bondingCurve.communityCoinDeets();
 
         assertEq(name, "TestMemeCoin");
         assertEq(symbol, "TMC");
@@ -102,21 +102,11 @@ contract CultureBotBondingCurveTest is Test {
 
     // Test Cost Calculation
     function test_calculate_cost() public view {
-        uint256 initialSupply = 0;
         uint256 tokensToBuy = 100000 * 10 ** 18;
 
-        uint256 cost = bondingCurve.calculateCost(
-            initialSupply,
-            tokensToBuy / 10 ** 18
-        );
-        uint256 cost2 = bondingCurve.calculateCost(
-            initialSupply + (tokensToBuy / 10 ** 18),
-            tokensToBuy / 10 ** 18
-        );
-        uint256 cost3 = bondingCurve.calculateCost(
-            initialSupply + (tokensToBuy + tokensToBuy) / 10 ** 18,
-            tokensToBuy / 10 ** 18
-        );
+        uint256 cost = bondingCurve.calculateCost(tokensToBuy / 10 ** 18);
+        uint256 cost2 = bondingCurve.calculateCost(tokensToBuy / 10 ** 18);
+        uint256 cost3 = bondingCurve.calculateCost(tokensToBuy / 10 ** 18);
         /**
          *   coost: 3000000000000000
             coost2: 3000000000000000
@@ -130,85 +120,72 @@ contract CultureBotBondingCurveTest is Test {
         assertGt(cost, 0, "Cost should be positive");
     }
 
-    // Test Buying Tokens
-    function test_buy_communityToken() public {
-        uint256 priceBefore = bondingCurve.calculateCost(
-            bondingCurve.activeSupply(),
-            1
-        );
-        console.log("priceBefore:", priceBefore); //571385279910646
-
+    function test_singleBuy() public {
         // Prepare to buy tokens
-        uint256 tokenQty = 100000;
-        console.log("tokenQuantity:", tokenQty);
-        uint256 requiredEth = bondingCurve.calculateCost(
-            bondingCurve.activeSupply(),
-            tokenQty
+        uint32 purchaseCost = 1000;
+        uint256 requiredEth = bondingCurve.calculateRequiredEthForUsd(
+            purchaseCost
         );
         console.log("requiredEth:", requiredEth);
 
-        console.log(
-            "numTokensForEth:",
-            bondingCurve.calculateTokensForEth(
-                bondingCurve.activeSupply(),
-                requiredEth
-            )
-        ); //835732618383544901
-        //835576465958490911
+        // Buy tokens
+        vm.deal(user1, 3 ether);
+        vm.prank(user1);
+        uint256 result = bondingCurve.buyToken{value: requiredEth}(
+            purchaseCost
+        );
+
+        // Verify purchase
+        assertEq(result, 1, "Token purchase should succeed");
+    }
+
+    // Test Buying Tokens
+    function test_buy_communityToken() public {
+        uint256 priceBefore = bondingCurve.getCurrentPrice();
+        console.log("priceBefore:", priceBefore); //571385279910646
+
+        // Prepare to buy tokens
+        uint32 purchaseCost = 1000;
+        console.log("purchaseAmount:", purchaseCost);
+        uint256 requiredEth = bondingCurve.calculateRequiredEthForUsd(
+            purchaseCost
+        );
+        console.log("requiredEth:", requiredEth);
+
         vm.deal(user1, 10000 ether);
         for (int i = 0; i < 20; i++) {
             vm.prank(user1);
-            bondingCurve.buyToken{value: 0.6 ether}(
-                address(memeToken),
-                tokenQty
-            );
+            bondingCurve.buyToken{value: 29 ether}(purchaseCost);
         }
-        uint256 currentPrice1 = bondingCurve.calculateCost(
-            bondingCurve.activeSupply(), //2112999999 //14999780 //2999956
-            1
-        );
+        uint256 currentPrice1 = bondingCurve.calculateCost(1);
         console.log("currentPrice1:", currentPrice1);
-        bondingCurve.buyToken{value: 0.1 ether}(address(memeToken), 1000000);
+        bondingCurve.buyToken{value: 0.4 ether}(400);
         console.log("1");
-        bondingCurve.buyToken{value: 0.1 ether}(address(memeToken), 10000000);
+        bondingCurve.buyToken{value: 0.17 ether}(450);
         console.log("2");
-        bondingCurve.buyToken{value: 0.8 ether}(address(memeToken), 100000000);
+        bondingCurve.buyToken{value: 1 ether}(3500);
         console.log("3");
-        bondingCurve.buyToken{value: 8.7 ether}(address(memeToken), 1000000000);
+        bondingCurve.buyToken{value: 10 ether}(36000);
         console.log("4");
-        bondingCurve.buyToken{value: 9.969 ether}(
-            address(memeToken),
-            999999999
-        );
+        bondingCurve.buyToken{value: 6 ether}(4000);
         console.log("5");
-        bondingCurve.buyToken{value: 0.999 ether}(address(memeToken), 99999999);
+        bondingCurve.buyToken{value: 1.5 ether}(4000);
         console.log("6");
-        bondingCurve.buyToken{value: 1.1 ether}(address(memeToken), 99999999);
+        bondingCurve.buyToken{value: 1.6 ether}(4400);
         console.log("7");
-        bondingCurve.buyToken{value: 1.1 ether}(address(memeToken), 99999999);
+        bondingCurve.buyToken{value: 1.6 ether}(4400);
 
-        for (int i = 0; i < 44; i++) {
-            vm.prank(user1);
+        vm.prank(user1);
 
-            bondingCurve.buyToken{value: 6 ether}(
-                address(memeToken),
-                1000000000
-            );
-        }
-        bondingCurve.buyToken{value: 1 ether}(address(memeToken), 100000000);
-        // bondingCurve.buyToken{value: 1 ether}(address(memeToken), 100000000);
-        // bondingCurve.buyToken{value: 1 ether}(address(memeToken), 1000000000);
-        //0.000000128555
+        bondingCurve.buyToken{value: 3 ether}(9000);
 
-        uint256 currentPrice = bondingCurve.calculateCost(
-            bondingCurve.activeSupply(), //2112999999
-            1
-        ); //6412999996
+        console.log("8");
+        bondingCurve.buyToken{value: 1.4 ether}(4000);
+
+        uint256 currentPrice = bondingCurve.getCurrentPrice(); //6412999996
         console.log("currentPrice:", currentPrice); //0.000000000300000000
         console.log("activeSupply:", bondingCurve.activeSupply());
-        (, , , , , , uint fundingRaised) = bondingCurve.addressToTokenMapping(
-            address(memeToken)
-        ); //300000000
+        (, , , , , , uint fundingRaised) = bondingCurve.communityCoinDeets(); //300000000
         console.log("ethaccrued:", fundingRaised);
         //000029999962500000
         // Buy tokens
@@ -226,35 +203,14 @@ contract CultureBotBondingCurveTest is Test {
 
     // Test Buying Tokens Fails When Not Enough ETH
     function test_buyToken_innsufficientEth() public {
-        uint256 tokenQty = 100;
-        // uint256 requiredEth = bondingCurve.calculateCost(0, tokenQty);
-
-        // Approve bonding curve to spend tokens
-        vm.prank(deployer);
-        memeToken.approve(address(bondingCurve), MAX_SUPPLY);
+        uint32 tokenQty = 1000;
 
         // Try to buy with insufficient ETH
         vm.prank(user1);
-        vm.expectRevert("Incorrect value of ETH sent");
-        bondingCurve.buyToken{value: 0 ether}(address(memeToken), tokenQty);
-    }
-
-    // Test Buying Tokens Exceeds Available Supply
-    function test_buyToken_exceedsSupply() public {
-        // Calculate max possible tokens
-        uint256 maxTokens = MAX_SUPPLY / 10 ** 18;
-
-        // Approve bonding curve to spend tokens
-        vm.prank(deployer);
-        memeToken.approve(address(bondingCurve), MAX_SUPPLY);
-
-        // Try to buy more tokens than available
-        vm.prank(user1);
-        vm.expectRevert();
-        bondingCurve.buyToken{value: 100 ether}(
-            address(memeToken),
-            maxTokens + 1
+        vm.expectRevert(
+            CultureBotBondingCurve.CBP__IncorrectCostValue.selector
         );
+        bondingCurve.buyToken{value: 0 ether}(tokenQty);
     }
 
     // Test Buying Tokens After Graduation
@@ -267,11 +223,12 @@ contract CultureBotBondingCurveTest is Test {
         );
 
         // Try to buy tokens after graduation
+        vm.deal(user1, 1 ether);
         vm.prank(user1);
         vm.expectRevert(
             CultureBotBondingCurve.CBP__BondingCurveAlreadyGraduated.selector
         );
-        bondingCurve.buyToken{value: 1 ether}(address(memeToken), 10);
+        bondingCurve.buyToken{value: 1 ether}(10);
     }
 
     // Fuzz Test Cost Calculation
@@ -286,7 +243,7 @@ contract CultureBotBondingCurveTest is Test {
                 _tokens < (BONDINGCURVE_SUPPLY - _supply * 10 ** 18) / 10 ** 18
         );
 
-        uint256 cost = bondingCurve.calculateCost(_supply, _tokens);
+        uint256 cost = bondingCurve.calculateCost(_tokens);
 
         // Basic sanity checks
         assertGt(cost, 0, "Cost should always be positive");
@@ -299,10 +256,7 @@ contract CultureBotBondingCurveTest is Test {
             purchaseCostInUsd
         );
         console.log("noOfTokens:", numTokens);
-        uint256 correspondingEthValue = bondingCurve.calculateCost(
-            bondingCurve.activeSupply(),
-            numTokens
-        );
+        uint256 correspondingEthValue = bondingCurve.calculateCost(numTokens);
         console.log("eeth:", correspondingEthValue);
     }
 
@@ -474,7 +428,7 @@ contract CultureBotBondingCurveTest is Test {
 
     // Helper function to test gas usage
     function testGas_ConfigurePool() public {
-        vm.startPrank(owner);
+        vm.startPrank(address(factory));
         vm.deal(address(bondingCurve), 24 ether);
 
         uint256 gasStart = gasleft();

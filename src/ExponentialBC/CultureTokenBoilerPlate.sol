@@ -15,6 +15,7 @@ contract CultureBotTokenBoilerPlate is ERC20, Ownable {
     string private _symbol;
     uint8 private immutable _decimals;
     uint256 public immutable max_supply;
+    uint256 private constant DECIMALS = 1e18;
 
     address public factory;
 
@@ -37,7 +38,7 @@ contract CultureBotTokenBoilerPlate is ERC20, Ownable {
         max_supply = _max_supply;
 
         for (uint i = 0; i < allocationAddys.length; i++) {
-            _mint(allocationAddys[i], allocationAmount[i]);
+            _mint(allocationAddys[i], allocationAmount[i] * DECIMALS);
         }
     }
 

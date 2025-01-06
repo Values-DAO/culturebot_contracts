@@ -7,7 +7,7 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {BitMaps} from "@openzeppelin/contracts/utils/structs/BitMaps.sol";
 import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 
-contract CultureBotTokenBoilerPlate is ERC20, Ownable {
+contract CultureBotTokenBoilerPlatee is ERC20, Ownable {
     //error
     error TBP__InvalidParams();
     error TBP__CantExceedMaxSupply();

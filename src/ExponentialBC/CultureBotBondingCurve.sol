@@ -6,7 +6,7 @@ import {CultureBotTokenBoilerPlate} from "src/ExponentialBC/CultureTokenBoilerPl
 import {INonfungiblePositionManager, IUniswapV3Factory, IWETH9} from "./interface.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {TickMath} from "v3-core/contracts/libraries/TickMath.sol";
-import {UD60x18, ud, ln, exp} from "prb-math/UD60x18.sol";
+import {UD60x18, ud, exp} from "prb-math/UD60x18.sol";
 import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 
 /// @title CultureBot Bonding Curve
@@ -20,8 +20,8 @@ contract CultureBotBondingCurve is Ownable, IERC721Receiver {
     error CBP__IncorrectCostValue();
     error CBP__InvalidTokenAddress();
     error CBP__SupplyCapExceededAlready();
-    error CBP__BondingCurveAlreadyGraduated();
     error CBP__InsufficientAvailableSupply();
+    error CBP__BondingCurveAlreadyGraduated();
 
     /// @notice Struct containing community coin details
     /// @dev Packed for optimal storage
@@ -37,6 +37,7 @@ contract CultureBotBondingCurve is Ownable, IERC721Receiver {
 
     /// @notice Chainlink price feed interface
     AggregatorV3Interface public immutable v3Interface;
+    CommunityCoinDeets public communityCoinDeets;
 
     /// @notice Current active supply of tokens
     uint256 public activeSupply;
@@ -46,25 +47,22 @@ contract CultureBotBondingCurve is Ownable, IERC721Receiver {
     address private constant BASE_ETH_PRICEFEED =
         0x4aDC67696bA383F43DD60A9e78F2C97Fbbfc7cb1;
     uint256 private constant DECIMALS = 1e18;
-    uint256 private constant MEMECOIN_GRADUATION_MC = 69420;
     uint256 private constant ETH_AMOUNT_TO_GRADUATE = 24 ether;
     uint256 public constant BONDINGCURVE_TOTAL_SUPPLY =
         54_000_000_000 * DECIMALS;
     uint256 public constant LP_SUPPLY = 13_500_000_000;
     uint128 private constant PRICE_PRECISION = 1e8;
-    uint256 private constant INITIAL_PRICE_USD = 10000000000000;
     uint256 private constant INITIAL_PRICE_IN_ETH = 0.000000000024269 ether;
     uint256 private constant K = 69420 * DECIMALS;
-
-    /// @notice Mapping of token address to its details
-    mapping(address => CommunityCoinDeets) public addressToTokenMapping;
 
     /// @notice Events for better transparency and off-chain tracking
     event TokensPurchased(
         address indexed buyer,
         address indexed token,
         uint256 amount,
-        uint256 cost
+        uint256 cost,
+        uint256 currentTokenPrice,
+        uint256 currentTokenSupply
     );
     event PoolConfigured(
         address indexed token,
@@ -80,7 +78,7 @@ contract CultureBotBondingCurve is Ownable, IERC721Receiver {
         address tokenAddress,
         address creatorAddress
     ) Ownable(msg.sender) {
-        addressToTokenMapping[tokenAddress] = CommunityCoinDeets({
+        communityCoinDeets = CommunityCoinDeets({
             name: name,
             symbol: symbol,
             isGraduated: false,
@@ -93,16 +91,10 @@ contract CultureBotBondingCurve is Ownable, IERC721Receiver {
     }
 
     /// @notice Purchase tokens using the bonding curve
-    /// @param tokenAddress Address of the token to purchase
-    /// @param tokenQty Quantity of tokens to purchase
+    /// @param usdAmount USD amount to spend
     /// @return success Returns 1 if successful
-    function buyToken(
-        address tokenAddress,
-        uint256 tokenQty
-    ) public payable returns (uint256) {
-        CommunityCoinDeets storage listedToken = addressToTokenMapping[
-            tokenAddress
-        ];
+    function buyToken(uint32 usdAmount) public payable returns (uint256) {
+        CommunityCoinDeets storage listedToken = communityCoinDeets;
 
         if (listedToken.tokenAddress == address(0))
             revert CBP__InvalidTokenAddress();
@@ -111,7 +103,10 @@ contract CultureBotBondingCurve is Ownable, IERC721Receiver {
         if (listedToken.fundingRaised >= ETH_AMOUNT_TO_GRADUATE)
             revert CBP__BondingCurveAlreadyGraduated();
 
-        uint256 requiredEth = calculateCost(activeSupply, tokenQty);
+        uint256 tokenQty = calculateCoinAmountOnUSDAmt(usdAmount);
+
+        uint256 requiredEth = calculateCost(tokenQty);
+
         if (msg.value < requiredEth) revert CBP__IncorrectCostValue();
 
         uint256 available_qty = (BONDINGCURVE_TOTAL_SUPPLY - activeSupply) /
@@ -123,16 +118,18 @@ contract CultureBotBondingCurve is Ownable, IERC721Receiver {
         listedToken.fundingRaised += requiredEth;
         activeSupply += tokenQty_scaled;
 
-        CultureBotTokenBoilerPlate(tokenAddress).transfer(
+        CultureBotTokenBoilerPlate(listedToken.tokenAddress).transfer(
             msg.sender,
             tokenQty_scaled
         );
 
         emit TokensPurchased(
             msg.sender,
-            tokenAddress,
+            listedToken.tokenAddress,
             tokenQty_scaled,
-            requiredEth
+            requiredEth,
+            calculateCost(1),
+            activeSupply
         );
         return 1;
     }
@@ -148,9 +145,7 @@ contract CultureBotBondingCurve is Ownable, IERC721Receiver {
         address _positionManager,
         address poolfactory
     ) external onlyOwner returns (uint256 positionId) {
-        CommunityCoinDeets storage listedToken = addressToTokenMapping[
-            newToken
-        ];
+        CommunityCoinDeets storage listedToken = communityCoinDeets;
         (address token0, address token1) = newToken < wethAddress
             ? (newToken, wethAddress)
             : (wethAddress, newToken);
@@ -195,20 +190,16 @@ contract CultureBotBondingCurve is Ownable, IERC721Receiver {
 
     // Cost formula: (P0 / k) * (e^(k * (activeSupply + tokensToBuy)) - e^(k * activeSupply))
     /// @notice Calculate cost of tokens based on bonding curve
-    /// @param _activeSupply Current active supply
     /// @param tokensToBuy Amount of tokens to purchase
     /// @return Cost in ETH
-    function calculateCost(
-        uint256 _activeSupply,
-        uint256 tokensToBuy
-    ) public pure returns (uint256) {
+    function calculateCost(uint256 tokensToBuy) public view returns (uint256) {
         UD60x18 p0 = ud(INITIAL_PRICE_IN_ETH * DECIMALS);
         UD60x18 kud = ud(K);
         UD60x18 dynamicScaleFactor = calculateDynamicScaleFactor(
-            _activeSupply / DECIMALS
+            activeSupply / DECIMALS
         );
 
-        UD60x18 s = ud(_activeSupply / DECIMALS);
+        UD60x18 s = ud(activeSupply / DECIMALS);
         UD60x18 t = ud(tokensToBuy);
 
         UD60x18 term1 = exp(kud.mul(s.add(t)));
@@ -238,37 +229,16 @@ contract CultureBotBondingCurve is Ownable, IERC721Receiver {
         return logComponent.mul(proximityFactor);
     }
 
-    //y= (1/k)*ln( (k⋅cost/P0*e^kx)+1)
-    /// @notice Calculate the number of tokens that can be purchased with a given amount of ETH
-    /// @param _activeSupply Current active supply of tokens
-    /// @param ethAmount Amount of ETH to spend
-    /// @return tokenQuantity Number of tokens that can be purchased
-    /// @dev Uses inverse bonding curve formula: y = (1/k)*ln((k⋅cost/P0*e^kx)+1)
-    function calculateTokensForEth(
-        uint256 _activeSupply,
-        uint256 ethAmount
-    ) public pure returns (uint256 tokenQuantity) {
-        if (ethAmount == 0) return 0;
+    /// @notice Calculate the amount of ETH equivalent for a given token purchase amount in USD
+    /// @param usdAmount Amount in USD
+    /// @return requiredEth Amount of ETH required
+    function calculateRequiredEthForUsd(
+        uint32 usdAmount
+    ) public view returns (uint256 requiredEth) {
+        if (usdAmount == 0) return 0;
+        uint256 tokenQty = calculateCoinAmountOnUSDAmt(usdAmount);
 
-        UD60x18 cost = ud(ethAmount);
-        UD60x18 p0 = ud(INITIAL_PRICE_IN_ETH * DECIMALS);
-        UD60x18 kud = ud(K);
-        UD60x18 xud = ud(_activeSupply);
-
-        // Cache dynamic scale calculation to avoid multiple computations
-        UD60x18 dynamicScale = calculateDynamicScaleFactor(_activeSupply) +
-            ud(1);
-
-        // Optimize exponential calculation
-        UD60x18 expKx = exp(kud.mul(xud));
-
-        // Combine divisions to reduce gas
-        UD60x18 scaledCost = cost.mul(kud).div(p0.mul(dynamicScale));
-        UD60x18 scaledExp = expKx.div(p0.mul(dynamicScale));
-
-        // Calculate final result
-        UD60x18 lnArgument = scaledCost.add(scaledExp);
-        return ln(lnArgument).div(kud).unwrap();
+        requiredEth = calculateCost(tokenQty);
     }
 
     /// @notice Calculate the coin amount that can be purchased with a given USD amount
@@ -277,8 +247,8 @@ contract CultureBotBondingCurve is Ownable, IERC721Receiver {
     /// @dev Uses Chainlink price feed for ETH/USD conversion
     function calculateCoinAmountOnUSDAmt(
         uint32 purchaseAmountInUsd
-    ) external view returns (uint256) {
-        uint256 costInEthPerCoin = calculateCost((activeSupply), 1);
+    ) public view returns (uint256) {
+        uint256 costInEthPerCoin = calculateCost(1);
 
         (, int256 ethPrice, , , ) = v3Interface.latestRoundData();
 
@@ -345,6 +315,6 @@ contract CultureBotBondingCurve is Ownable, IERC721Receiver {
     /// @notice Get the current price of the token in ETH
     /// @return Current price according to the bonding curve
     function getCurrentPrice() external view returns (uint256) {
-        return calculateCost(activeSupply, 1);
+        return calculateCost(1);
     }
 }
