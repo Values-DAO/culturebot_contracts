@@ -112,7 +112,7 @@ contract CBRewardDistributionModule {
         uint256 amount,
         address claimant
     ) private view {
-        bytes32 leaf = keccak256(abi.encodePacked(claimant, index, amount));
+        bytes32 leaf = keccak256(abi.encode(claimant, index, amount));
         require(
             MerkleProof.verify(proof, merkleRoot, leaf),
             "Invalid Merkle proof"

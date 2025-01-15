@@ -80,6 +80,9 @@ contract CBRewardDistributionModuleTest is Test {
         // Mint tokens to Safe
         rewardToken.mint(address(mockSafe), 1000000e18);
 
+        vm.prank(address(mockSafe));
+        rewardToken.approve(address(module), 1000000e18);
+
         // Setup Merkle tree data
         setupMerkleTree();
     }

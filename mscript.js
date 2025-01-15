@@ -1,6 +1,6 @@
 const { StandardMerkleTree } = require("@openzeppelin/merkle-tree");
 const fs = require("fs");
-const { default: inquirer } = require("inquirer");
+const inquirer = require("inquirer");
 
 // Sample reward data - in production this would come from your data source
 const rewards = [
@@ -40,7 +40,6 @@ const output = {
     claims: claims
 };
 
-// Save to JSON files
 function saveToFile() {
     fs.writeFileSync(
         "merkle-tree-data.json",
@@ -57,7 +56,6 @@ function saveToFile() {
     );
 }
 
-// Verification helper function
 function verifyAndGetProof(address) {
     const claim = claims[address];
     if (!claim) {
@@ -84,7 +82,6 @@ function verifyAndGetProof(address) {
     };
 }
 
-// Function to display proof details
 function displayProofDetails(proofResult) {
     if (!proofResult.success) {
         console.log("\n❌ Error:", proofResult.message);
@@ -104,7 +101,6 @@ function displayProofDetails(proofResult) {
 
     console.log("\nVerification Status:", data.verified ? "✅ Valid" : "❌ Invalid");
 
-    // Save individual proof to file
     const proofFileName = `proof-${data.address.slice(0, 8)}.json`;
     fs.writeFileSync(
         proofFileName,
@@ -115,7 +111,6 @@ function displayProofDetails(proofResult) {
 
 async function main() {
     try {
-        // First prompt - ask if user wants to generate a proof
         const { generateProof } = await inquirer.prompt([
             {
                 type: 'confirm',
@@ -125,13 +120,11 @@ async function main() {
             }
         ]);
 
-        // Generate and save the merkle tree data
         saveToFile();
         console.log("\n📦 Merkle tree data generated and saved");
         console.log(`🌳 Merkle Root: ${merkleRoot}`);
 
         if (generateProof) {
-            // If yes, prompt for address
             const { address } = await inquirer.prompt([
                 {
                     type: 'input',
@@ -146,7 +139,6 @@ async function main() {
                 }
             ]);
 
-            // Generate and display proof
             const proofResult = verifyAndGetProof(address);
             displayProofDetails(proofResult);
         }
@@ -155,5 +147,5 @@ async function main() {
         console.error("An error occurred:", error);
     }
 }
-// Run the script
+
 main();
