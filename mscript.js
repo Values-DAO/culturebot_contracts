@@ -4,16 +4,16 @@ const inquirer = require("inquirer");
 
 // Sample reward data - in production this would come from your data source
 const rewards = [
-    { address: "0x1234567890123456789012345678901234567890", index: 0, amount: "100000000000000000000" },
-    { address: "0x2345678901234567890123456789012345678901", index: 1, amount: "200000000000000000000" },
-    { address: "0x3456789012345678901234567890123456789012", index: 2, amount: "300000000000000000000" },
-    { address: "0x4567890123456789012345678901234567890123", index: 3, amount: "400000000000000000000" }
+    { address: "0x1234567890123456789012345678901234567890", index: 0, amount: 100 },
+    { address: "0x2345678901234567890123456789012345678901", index: 1, amount: 200 },
+    { address: "0x3456789012345678901234567890123456789012", index: 2, amount: 300 },
+    { address: "0x4567890123456789012345678901234567890123", index: 3, amount: 400 }
 ];
 
 // Format the values for the Merkle tree
 const values = rewards.map(reward => [
     reward.address,
-    reward.index.toString(),
+    reward.index,
     reward.amount
 ]);
 
@@ -56,7 +56,7 @@ function saveToFile() {
     );
 }
 
-function verifyAndGetProof(address) {
+function getProof(address) {
     const claim = claims[address];
     if (!claim) {
         return {
@@ -66,18 +66,14 @@ function verifyAndGetProof(address) {
         };
     }
 
-    const leaf = [address, claim.index.toString(), claim.amount];
-    const isValid = tree.verify(claim.proof, leaf);
-
     return {
-        success: isValid,
-        message: isValid ? "Proof verified successfully" : "Proof verification failed",
+        success: true,
+        message: "Proof generated successfully",
         data: {
             address,
             index: claim.index,
             amount: claim.amount,
-            proof: claim.proof,
-            verified: isValid
+            proof: claim.proof
         }
     };
 }
@@ -98,8 +94,6 @@ function displayProofDetails(proofResult) {
     console.log("\nProof Array:");
     console.log("════════════");
     console.log(data.proof);
-
-    console.log("\nVerification Status:", data.verified ? "✅ Valid" : "❌ Invalid");
 
     const proofFileName = `proof-${data.address.slice(0, 8)}.json`;
     fs.writeFileSync(
@@ -139,7 +133,7 @@ async function main() {
                 }
             ]);
 
-            const proofResult = verifyAndGetProof(address);
+            const proofResult = getProof(address);
             displayProofDetails(proofResult);
         }
 

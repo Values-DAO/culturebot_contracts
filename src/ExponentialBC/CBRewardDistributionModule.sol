@@ -1,6 +1,7 @@
 // SPDX-License-Identifier:MIT
 pragma solidity ^0.8.24;
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {console} from "forge-std/console.sol";
 import "@openzeppelin/contracts/utils/structs/BitMaps.sol";
 import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import "./Enum.sol";
@@ -112,7 +113,8 @@ contract CBRewardDistributionModule {
         uint256 amount,
         address claimant
     ) private view {
-        bytes32 leaf = keccak256(abi.encode(claimant, index, amount));
+        bytes32 leaf = keccak256(abi.encodePacked(claimant, index, amount));
+
         require(
             MerkleProof.verify(proof, merkleRoot, leaf),
             "Invalid Merkle proof"
