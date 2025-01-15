@@ -16,8 +16,8 @@ contract CultureBotFactory {
 
     /// @notice Constants for token supply calculations
     /// @dev All values are scaled by DECIMALS (1e18)
-    uint256 private constant DECIMALS = 1e18;
-    uint256 private constant MAX_SUPPLY = 100_000_000_000 * DECIMALS;
+    uint256 public constant DECIMALS = 1e18;
+    uint256 public constant MAX_SUPPLY = 100_000_000_000 * DECIMALS;
     uint256 private constant INIT_SUPPLY = (MAX_SUPPLY * 10) / 100; // 10% of max supply
     uint256 private constant BONDINGCURVE_SUPPLY = (MAX_SUPPLY * 90) / 100; // 90% of max supply
 

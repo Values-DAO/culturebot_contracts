@@ -10,6 +10,7 @@ contract CultureBotTokenBoilerPlate is ERC20, Ownable {
     error TBP__InvalidParams();
     error TBP__CantExceedMaxSupply();
     error TBP__OnlyFactoryCanAccess();
+    error TBP__OnlyAuthorisedCanAccess();
 
     string private _name;
     string private _symbol;
@@ -17,7 +18,7 @@ contract CultureBotTokenBoilerPlate is ERC20, Ownable {
     uint256 public immutable max_supply;
     uint256 private constant DECIMALS = 1e18;
 
-    address public factory;
+    address private factory;
 
     modifier onlyFactory() {
         if (msg.sender != factory) revert TBP__OnlyFactoryCanAccess();
@@ -48,7 +49,7 @@ contract CultureBotTokenBoilerPlate is ERC20, Ownable {
         _mint(caller, amount);
     }
 
-    function tokenBurn(address caller, uint256 amount) external onlyFactory {
+    function tokenBurn(address caller, uint256 amount) external {
         _burn(caller, amount);
     }
 

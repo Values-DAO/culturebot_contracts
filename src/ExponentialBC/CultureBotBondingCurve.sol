@@ -20,6 +20,7 @@ contract CultureBotBondingCurve is Ownable, IERC721Receiver {
     error CBP__IncorrectCostValue();
     error CBP__InvalidTokenAddress();
     error CBP__SupplyCapExceededAlready();
+    error CBP__BondingCurveYetToGraduate();
     error CBP__InsufficientAvailableSupply();
     error CBP__BondingCurveAlreadyGraduated();
 
@@ -148,6 +149,7 @@ contract CultureBotBondingCurve is Ownable, IERC721Receiver {
         address poolfactory
     ) external onlyOwner returns (uint256 positionId) {
         CommunityCoinDeets storage listedToken = communityCoinDeets;
+        if (!listedToken.isGraduated) revert CBP__BondingCurveYetToGraduate();
         (address token0, address token1) = newToken < wethAddress
             ? (newToken, wethAddress)
             : (wethAddress, newToken);

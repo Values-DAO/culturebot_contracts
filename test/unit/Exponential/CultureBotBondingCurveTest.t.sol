@@ -78,6 +78,21 @@ contract CultureBotBondingCurveTest is Test {
         memeToken = CultureBotTokenBoilerPlate(tokenAddress);
     }
 
+    function test_launch_new_token() public {
+        address[] memory allocAddrs = new address[](1);
+        allocAddrs[0] = deployer;
+        uint256[] memory allocAmounts = new uint256[](1);
+        allocAmounts[0] = INIT_SUPPLY;
+
+        factory.initialiseToken(
+            "TestMemeCoin2",
+            "TMC",
+            "Test Meme Coin Description",
+            allocAddrs,
+            allocAmounts
+        );
+    }
+
     // Test Contract Initialization
     function test_contract_initialization() public view {
         // Verify token details in mapping
@@ -163,9 +178,9 @@ contract CultureBotBondingCurveTest is Test {
         console.log("1");
         bondingCurve.buyToken{value: 0.17 ether}(450);
         console.log("2");
-        bondingCurve.buyToken{value: 1 ether}(3500);
+        bondingCurve.buyToken{value: 1.3 ether}(3500);
         console.log("3");
-        bondingCurve.buyToken{value: 10 ether}(36000);
+        bondingCurve.buyToken{value: 13 ether}(36000);
         console.log("4");
         bondingCurve.buyToken{value: 6 ether}(4000);
         console.log("5");
@@ -173,24 +188,26 @@ contract CultureBotBondingCurveTest is Test {
         console.log("6");
         bondingCurve.buyToken{value: 1.6 ether}(4400);
         console.log("7");
-        bondingCurve.buyToken{value: 1.6 ether}(4400);
+        // bondingCurve.buyToken{value: 1.6 ether}(4400);
 
-        vm.prank(user1);
+        // vm.prank(user1);
 
-        bondingCurve.buyToken{value: 3 ether}(9000);
+        // bondingCurve.buyToken{value: 3 ether}(9000);
 
-        console.log("8");
-        bondingCurve.buyToken{value: 1.4 ether}(4000);
+        // console.log("8");
+        bondingCurve.buyToken{value: 1.4 ether}(3500);
+        bondingCurve.buyToken{value: 0.55 ether}(1500);
 
         uint256 currentPrice = bondingCurve.getCurrentPrice(); //6412999996
         console.log("currentPrice:", currentPrice); //0.000000000300000000
         console.log("activeSupply:", bondingCurve.activeSupply());
         (, , , , , , uint fundingRaised) = bondingCurve.communityCoinDeets(); //300000000
         console.log("ethaccrued:", fundingRaised);
-        //000029999962500000
-        // Buy tokens
-        //0.000000000262500000
-        //0.000000000300000000
+        console.log(
+            "currentmrketcap:",
+            ((currentPrice * bondingCurve.activeSupply()) / 1e36) * 3240
+        );
+        //268279.279632
 
         // // Verify purchase
         // assertEq(result, 1, "Token purchase should succeed");

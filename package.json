@@ -1,0 +1,19 @@
+{
+  "name": "culturebot",
+  "version": "1.0.0",
+  "description": "A decentralized protocol for community-driven token launches utilizing exponential bonding curves and automated liquidity provisioning.",
+  "main": "index.js",
+  "directories": {
+    "lib": "lib",
+    "test": "test"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@openzeppelin/merkle-tree": "^1.0.7",
+    "inquirer": "^9.2.12"
+  }
+}
