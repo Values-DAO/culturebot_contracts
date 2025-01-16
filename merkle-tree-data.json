@@ -1,0 +1,37 @@
+{
+  "merkleRoot": "0xc36ba5cae6b6d3c0cba5ab3c18240c91387ae1dfd012e9a5f8e0d3edd779b7a5",
+  "claims": {
+    "0x1234567890123456789012345678901234567890": {
+      "index": 0,
+      "amount": 100,
+      "proof": [
+        "0xa4c95ba40f13e2fd3c738a8f04ce55ae67ef28647491f508077d5ea158a59c93",
+        "0xdfbbd551fd0d1a856d630247cfd6d408a9b6274512d363ce6e722c098a5a410a"
+      ]
+    },
+    "0x2345678901234567890123456789012345678901": {
+      "index": 1,
+      "amount": 200,
+      "proof": [
+        "0xf7148d981baeeeba80e21ef5bf38a73552e1f8e27fdc3a99045e29c9b6a73dba",
+        "0x66e56fe3cbe5027f28fedd1ae411371d1b6b61d44f322d4f0bd094a27210d3fd"
+      ]
+    },
+    "0x3456789012345678901234567890123456789012": {
+      "index": 2,
+      "amount": 300,
+      "proof": [
+        "0xca0fedb670522d3e0b077e10fb5162fc9b80d9c65d54212b7cb6819abb5a4f1f",
+        "0x66e56fe3cbe5027f28fedd1ae411371d1b6b61d44f322d4f0bd094a27210d3fd"
+      ]
+    },
+    "0x4567890123456789012345678901234567890123": {
+      "index": 3,
+      "amount": 400,
+      "proof": [
+        "0x9e69435cad7103c2385f49c26e7fa6a204458b9309a960c34334d119948d929a",
+        "0xdfbbd551fd0d1a856d630247cfd6d408a9b6274512d363ce6e722c098a5a410a"
+      ]
+    }
+  }
+}

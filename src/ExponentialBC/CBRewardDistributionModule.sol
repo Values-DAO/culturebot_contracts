@@ -1,7 +1,8 @@
 // SPDX-License-Identifier:MIT
 pragma solidity ^0.8.24;
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {console} from "forge-std/console.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+
 import "@openzeppelin/contracts/utils/structs/BitMaps.sol";
 import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import "./Enum.sol";
@@ -15,7 +16,7 @@ interface ISafe {
     ) external returns (bool success);
 }
 
-contract CBRewardDistributionModule {
+contract CBRewardDistributionModule is Ownable {
     using BitMaps for BitMaps.BitMap;
 
     error CBR__OnlySafe();
@@ -56,14 +57,14 @@ contract CBRewardDistributionModule {
     }
 
     // Constructor to initialize the module with the Safe address
-    constructor(address _safe) {
+    constructor(address _safe) Ownable(msg.sender) {
         if (_safe == address(0)) revert CBR__InvalidAddress();
         safe = _safe;
     }
 
     /// @dev Allows the Safe to set or update the delegate address.
     /// @param _delegate The address of the delegate.
-    function setDelegate(address _delegate) external onlySafe {
+    function setDelegate(address _delegate) external {
         delegate = _delegate;
         emit DelegateUpdated(_delegate);
     }
@@ -113,7 +114,9 @@ contract CBRewardDistributionModule {
         uint256 amount,
         address claimant
     ) private view {
-        bytes32 leaf = keccak256(abi.encodePacked(claimant, index, amount));
+        bytes32 leaf = keccak256(
+            bytes.concat(keccak256(abi.encode(claimant, index, amount)))
+        );
 
         require(
             MerkleProof.verify(proof, merkleRoot, leaf),

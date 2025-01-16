@@ -47,10 +47,10 @@ contract CBRewardDistributionModuleTest is Test {
     MockERC20 public rewardToken;
     MockSafe public mockSafe;
 
-    address public constant ALICE = address(0x1);
-    address public constant BOB = address(0x2);
-    address public constant CHARLIE = address(0x3);
-    address public constant DELEGATE = address(0x4);
+    address public alice = address(0x1);
+    address public bob = address(0x2);
+    address public charlie = address(0x3);
+    address public DELEGATE = address(0x4);
 
     // Test data for Merkle tree
     struct Claim {
@@ -61,7 +61,7 @@ contract CBRewardDistributionModuleTest is Test {
     }
 
     bytes32 public merkleRoot;
-    // bytes32[] public leaves;
+    bytes32[] public leaves;
     mapping(address => Claim) public claims;
 
     function setUp() public {
@@ -75,9 +75,9 @@ contract CBRewardDistributionModuleTest is Test {
         module.setDelegate(DELEGATE);
 
         // Setup test accounts
-        vm.deal(ALICE, 100 ether);
-        vm.deal(BOB, 100 ether);
-        vm.deal(CHARLIE, 100 ether);
+        vm.deal(alice, 100 ether);
+        vm.deal(bob, 100 ether);
+        vm.deal(charlie, 100 ether);
 
         // Mint tokens to Safe
         rewardToken.mint(address(mockSafe), 1000000e18);
@@ -115,124 +115,73 @@ contract CBRewardDistributionModuleTest is Test {
     }
 
     function setupMerkleTree() internal {
-        // Create leaf nodes
-        bytes32[] memory leaves = new bytes32[](3);
+        // Initialize leaves array
+        leaves = new bytes32[](3);
 
-        // Define claims data
-        address[3] memory users = [ALICE, BOB, CHARLIE];
-        uint256[3] memory indices = [uint256(0), uint256(1), uint256(2)];
-        uint256[3] memory amounts = [
-            uint256(100e18),
-            uint256(200e18),
-            uint256(300e18)
-        ];
+        // Create leaves for the Merkle tree using the correct encoding
+        leaves[0] = keccak256(
+            bytes.concat(
+                keccak256(abi.encode(alice, uint256(0), uint256(100e18)))
+            )
+        );
+        leaves[1] = keccak256(
+            bytes.concat(
+                keccak256(abi.encode(bob, uint256(1), uint256(200e18)))
+            )
+        );
+        leaves[2] = keccak256(
+            bytes.concat(
+                keccak256(abi.encode(charlie, uint256(2), uint256(300e18)))
+            )
+        );
 
-        // Create leaves
-        for (uint256 i = 0; i < 3; i++) {
-            leaves[i] = keccak256(
-                abi.encodePacked(users[i], indices[i], amounts[i])
-            );
-            // console.log("Leaf %s:", i);
-            // console.logBytes32(leaves[i]);
-        }
-
-        // Create layer 1 (combining leaves)
-        bytes32 hash01 = keccak256(abi.encodePacked(leaves[0], leaves[1]));
-        // console.log("Hash01:");
-        // console.logBytes32(hash01);
+        // Calculate intermediate nodes
+        bytes32 hash01 = keccak256(
+            bytes.concat(keccak256(abi.encode(leaves[0], leaves[1])))
+        );
+        bytes32 hash2 = leaves[2];
 
         // Calculate root
-        merkleRoot = keccak256(abi.encodePacked(hash01, leaves[2]));
-        // console.log("Root:");
-        // console.logBytes32(merkleRoot);
-
-        // Set merkle root in contract
-        vm.prank(DELEGATE);
-        module.updateMerkleRoot(merkleRoot);
+        merkleRoot = keccak256(
+            bytes.concat(keccak256(abi.encode(hash01, hash2)))
+        );
 
         // Generate proofs
-        // ALICE's proof (index 0): needs [leaf1, leaf2]
+        // For alice (index 0)
         bytes32[] memory aliceProof = new bytes32[](2);
-        aliceProof[0] = leaves[1]; // sibling
-        aliceProof[1] = leaves[2]; // next level
-        claims[ALICE] = Claim({
-            user: ALICE,
+        aliceProof[0] = leaves[1];
+        aliceProof[1] = hash2;
+        claims[alice] = Claim({
+            user: alice,
             index: 0,
             amount: 100e18,
             proof: aliceProof
         });
 
-        // Log Alice's proof verification elements
-        // console.log("Alice Verification Elements:");
-        // console.log("Address:", uint256(uint160(ALICE)));
-        // console.log("Index:", uint(0));
-        // console.log("Amount:", uint(100e18));
-        // console.log("Proof elements:");
-        // console.logBytes32(aliceProof[0]);
-        // console.logBytes32(aliceProof[1]);
-
-        // BOB's proof (index 1): needs [leaf0, leaf2]
+        // For bob (index 1)
         bytes32[] memory bobProof = new bytes32[](2);
         bobProof[0] = leaves[0];
-        bobProof[1] = leaves[2];
-        claims[BOB] = Claim({
-            user: BOB,
+        bobProof[1] = hash2;
+        claims[bob] = Claim({
+            user: bob,
             index: 1,
             amount: 200e18,
             proof: bobProof
         });
 
-        // CHARLIE's proof (index 2): needs [hash01]
+        // For charlie (index 2)
         bytes32[] memory charlieProof = new bytes32[](1);
         charlieProof[0] = hash01;
-        claims[CHARLIE] = Claim({
-            user: CHARLIE,
+        claims[charlie] = Claim({
+            user: charlie,
             index: 2,
             amount: 300e18,
             proof: charlieProof
         });
-    }
 
-    function test_claimRewardsss() public {
-        Claim memory claim = claims[ALICE];
-
-        bytes32 computedLeaf = keccak256(
-            abi.encodePacked(ALICE, claim.index, claim.amount)
-        );
-        console.log("Test Computed Leaf:");
-        console.logBytes32(computedLeaf);
-
-        console.log("Contract Merkle Root:");
-        console.logBytes32(module.merkleRoot());
-
-        // Verify each step of the proof manually
-        bytes32 currentHash = computedLeaf;
-        for (uint256 i = 0; i < claim.proof.length; i++) {
-            console.log("Proof Step", i);
-            console.log("Current Hash:");
-            console.logBytes32(currentHash);
-            console.log("Proof Element:");
-            console.logBytes32(claim.proof[i]);
-            currentHash = keccak256(
-                abi.encodePacked(currentHash, claim.proof[i])
-            );
-            console.log("Result:");
-            console.logBytes32(currentHash);
-        }
-
-        uint256 initialBalance = rewardToken.balanceOf(ALICE);
-
+        // Set merkle root in contract
         vm.prank(DELEGATE);
-        module.claimRewards(
-            ALICE,
-            address(rewardToken),
-            claim.proof,
-            claim.index,
-            claim.amount
-        );
-
-        assertEq(rewardToken.balanceOf(ALICE), initialBalance + claim.amount);
-        assertTrue(module.isRewardClaimed(claim.index));
+        module.updateMerkleRoot(merkleRoot);
     }
 
     // Verify proof helper function
@@ -242,9 +191,10 @@ contract CBRewardDistributionModuleTest is Test {
         uint256 amount,
         bytes32[] memory proof
     ) internal view returns (bool) {
-        bytes32 leaf = keccak256(abi.encodePacked(account, index, amount));
-        console.log("Leaf:", uint256(leaf)); // Add this if using forge console
-        console.log("Root:", uint256(merkleRoot));
+        bytes32 leaf = keccak256(
+            bytes.concat(keccak256(abi.encode(account, index, amount)))
+        );
+
         return MerkleProof.verify(proof, merkleRoot, leaf);
     }
 
@@ -270,7 +220,7 @@ contract CBRewardDistributionModuleTest is Test {
 
     function test_setDelegate_unauthorized() public {
         address newDelegate = address(0x5);
-        vm.prank(ALICE);
+        vm.prank(alice);
         vm.expectRevert(CBRewardDistributionModule.CBR__OnlySafe.selector);
         module.setDelegate(newDelegate);
     }
@@ -285,61 +235,61 @@ contract CBRewardDistributionModuleTest is Test {
 
     function test_updateMerkleRoot_unauthorized() public {
         bytes32 newRoot = bytes32(uint256(123));
-        vm.prank(ALICE);
+        vm.prank(alice);
         vm.expectRevert("Only delegate can call this function");
         module.updateMerkleRoot(newRoot);
     }
 
     // Test claim rewards
     function test_claimRewardss() public {
-        Claim memory claim = claims[ALICE];
+        Claim memory claim = claims[alice];
 
         // Verify that the proof is valid before attempting to claim
         assertTrue(
-            verifyProof(ALICE, claim.index, claim.amount, claim.proof),
+            verifyProof(alice, claim.index, claim.amount, claim.proof),
             "Proof verification failed"
         );
 
-        uint256 initialBalance = rewardToken.balanceOf(ALICE);
+        uint256 initialBalance = rewardToken.balanceOf(alice);
 
         vm.prank(DELEGATE);
         module.claimRewards(
-            ALICE,
+            alice,
             address(rewardToken),
             claim.proof,
             claim.index,
             claim.amount
         );
 
-        assertEq(rewardToken.balanceOf(ALICE), initialBalance + claim.amount);
+        assertEq(rewardToken.balanceOf(alice), initialBalance + claim.amount);
         assertTrue(module.isRewardClaimed(claim.index));
     }
 
     // Test claimRewards
     function test_claimRewards() public {
-        Claim memory claim = claims[ALICE];
+        Claim memory claim = claims[alice];
 
-        uint256 initialBalance = rewardToken.balanceOf(ALICE);
+        uint256 initialBalance = rewardToken.balanceOf(alice);
 
         vm.prank(DELEGATE);
         module.claimRewards(
-            ALICE,
+            alice,
             address(rewardToken),
             claim.proof,
             claim.index,
             claim.amount
         );
 
-        assertEq(rewardToken.balanceOf(ALICE), initialBalance + claim.amount);
+        assertEq(rewardToken.balanceOf(alice), initialBalance + claim.amount);
         assertTrue(module.isRewardClaimed(claim.index));
     }
 
     function testCannotClaimTwice() public {
-        Claim memory claim = claims[ALICE];
+        Claim memory claim = claims[alice];
 
         vm.prank(DELEGATE);
         module.claimRewards(
-            ALICE,
+            alice,
             address(rewardToken),
             claim.proof,
             claim.index,
@@ -351,7 +301,7 @@ contract CBRewardDistributionModuleTest is Test {
             CBRewardDistributionModule.CBR__RewardAlreadyClaimed.selector
         );
         module.claimRewards(
-            ALICE,
+            alice,
             address(rewardToken),
             claim.proof,
             claim.index,
@@ -360,13 +310,13 @@ contract CBRewardDistributionModuleTest is Test {
     }
 
     function testCannotClaimWithInvalidProof() public {
-        Claim memory claim = claims[ALICE];
+        Claim memory claim = claims[alice];
         claim.proof[0] = bytes32(uint256(123)); // Corrupt the proof
 
         vm.prank(DELEGATE);
         vm.expectRevert("Invalid Merkle proof");
         module.claimRewards(
-            ALICE,
+            alice,
             address(rewardToken),
             claim.proof,
             claim.index,
@@ -375,13 +325,13 @@ contract CBRewardDistributionModuleTest is Test {
     }
 
     function testCannotClaimWithWrongAmount() public {
-        Claim memory claim = claims[ALICE];
+        Claim memory claim = claims[alice];
         uint256 wrongAmount = claim.amount + 1;
 
         vm.prank(DELEGATE);
         vm.expectRevert("Invalid Merkle proof");
         module.claimRewards(
-            ALICE,
+            alice,
             address(rewardToken),
             claim.proof,
             claim.index,
@@ -399,12 +349,12 @@ contract CBRewardDistributionModuleTest is Test {
     function testFuzz_CannotClaimWithInvalidIndex(uint256 invalidIndex) public {
         vm.assume(invalidIndex > 2); // Assume index outside valid range
 
-        Claim memory claim = claims[ALICE];
+        Claim memory claim = claims[alice];
 
         vm.prank(DELEGATE);
         vm.expectRevert("Invalid Merkle proof");
         module.claimRewards(
-            ALICE,
+            alice,
             address(rewardToken),
             claim.proof,
             invalidIndex,
@@ -415,28 +365,28 @@ contract CBRewardDistributionModuleTest is Test {
     // Test multiple claims
     function testMultipleValidClaims() public {
         // First claim
-        vm.prank(ALICE);
+        vm.prank(alice);
         module.claimRewards(
-            ALICE,
+            alice,
             address(rewardToken),
-            claims[ALICE].proof,
-            claims[ALICE].index,
-            claims[ALICE].amount
+            claims[alice].proof,
+            claims[alice].index,
+            claims[alice].amount
         );
 
         // Second claim
         vm.prank(DELEGATE);
         module.claimRewards(
-            BOB,
+            bob,
             address(rewardToken),
-            claims[BOB].proof,
-            claims[BOB].index,
-            claims[BOB].amount
+            claims[bob].proof,
+            claims[bob].index,
+            claims[bob].amount
         );
 
         // Verify balances
-        assertEq(rewardToken.balanceOf(ALICE), claims[ALICE].amount);
-        assertEq(rewardToken.balanceOf(BOB), claims[BOB].amount);
+        assertEq(rewardToken.balanceOf(alice), claims[alice].amount);
+        assertEq(rewardToken.balanceOf(bob), claims[bob].amount);
     }
 
     // Test failed token transfer
@@ -445,12 +395,12 @@ contract CBRewardDistributionModuleTest is Test {
         MockERC20 failingToken = new MockERC20("Failing Token", "FAIL");
         failingToken.setFailTransfers(true);
 
-        Claim memory claim = claims[ALICE];
+        Claim memory claim = claims[alice];
 
         vm.prank(DELEGATE);
         vm.expectRevert("Token transfer failed");
         module.claimRewards(
-            ALICE,
+            alice,
             address(failingToken),
             claim.proof,
             claim.index,
@@ -461,22 +411,22 @@ contract CBRewardDistributionModuleTest is Test {
     function test_claimRewards_withActualValues() public {
         vm.prank(DELEGATE);
         module.updateMerkleRoot(
-            0xc36ba5cae6b6d3c0cba5ab3c18240c91387ae1dfd012e9a5f8e0d3edd779b7a5
+            0xbb339d4a75a4e596caac9147faec01cef80e7889f2e5a7508e3dd23ebdbe3806
         );
         assertEq(
             module.merkleRoot(),
-            0xc36ba5cae6b6d3c0cba5ab3c18240c91387ae1dfd012e9a5f8e0d3edd779b7a5
+            0xbb339d4a75a4e596caac9147faec01cef80e7889f2e5a7508e3dd23ebdbe3806
         );
-        uint256 index = 3;
-        uint256 amount = 400;
-        address user = 0x4567890123456789012345678901234567890123;
+        uint256 index = 0;
+        uint256 amount = 25000000000000000000;
+        address user = 0x6CA6d1e2D5347Bfab1d91e883F1915560e09129D;
         bytes32[] memory proof = new bytes32[](2);
         proof[
             0
-        ] = 0x9e69435cad7103c2385f49c26e7fa6a204458b9309a960c34334d119948d929a;
+        ] = 0x017fa3a863a10478d020b14ca250461ff66cd7a6e01b5b49fbbe06cc4ccbd05e;
         proof[
             1
-        ] = 0xdfbbd551fd0d1a856d630247cfd6d408a9b6274512d363ce6e722c098a5a410a;
+        ] = 0x6c8cab648f981aa13f9014f0e7d0694131084336760c0090258cfebbcda950ae;
 
         vm.prank(DELEGATE);
         module.claimRewards(user, address(rewardToken), proof, index, amount);
