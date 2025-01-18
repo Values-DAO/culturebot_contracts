@@ -1,10 +1,12 @@
 // SPDX-License-Identifier:MIT
+
 pragma solidity ^0.8.24;
+
+import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 import "@openzeppelin/contracts/utils/structs/BitMaps.sol";
-import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import "./Enum.sol";
 
 interface ISafe {
@@ -23,9 +25,6 @@ contract CBRewardDistributionModule is Ownable {
     error CBR__InvalidAddress();
     error CBR__RewardAlreadyClaimed();
 
-    // Merkle root for reward distribution
-    bytes32 public merkleRoot;
-
     // Bitmap to track claimed rewards
     BitMaps.BitMap private rewardClaimList;
 
@@ -35,20 +34,16 @@ contract CBRewardDistributionModule is Ownable {
     // Delegate address (optional, for updating Merkle root)
     address public delegate;
 
+    mapping(address tokenAddy => bytes32 merkleRoot) public tokenToMerkleRoot;
+
     // Events
     event RewardClaimed(
         address indexed claimant,
         uint256 index,
         uint256 amount
     );
-    event MerkleRootUpdated(bytes32 newMerkleRoot);
+    event MerkleRootUpdated(bytes32 newMerkleRoot, address tokenAddress);
     event DelegateUpdated(address newDelegate);
-
-    // Modifier to restrict access to the Safe itself
-    modifier onlySafe() {
-        if (msg.sender != safe) revert CBR__OnlySafe();
-        _;
-    }
 
     // Modifier to restrict access to the delegate
     modifier onlyDelegate() {
@@ -71,9 +66,14 @@ contract CBRewardDistributionModule is Ownable {
 
     /// @dev Allows the delegate to update the Merkle root for reward distribution.
     /// @param _merkleRoot The new Merkle root.
-    function updateMerkleRoot(bytes32 _merkleRoot) external onlyDelegate {
-        merkleRoot = _merkleRoot;
-        emit MerkleRootUpdated(_merkleRoot);
+    /// @param tokenAddress The address of the corresponding token.
+    function updateMerkleRoot(
+        address tokenAddress,
+        bytes32 _merkleRoot
+    ) external onlyDelegate {
+        tokenToMerkleRoot[tokenAddress] = _merkleRoot;
+
+        emit MerkleRootUpdated(_merkleRoot, tokenAddress);
     }
 
     /// @dev Allows users to claim their rewards.
@@ -91,7 +91,7 @@ contract CBRewardDistributionModule is Ownable {
         if (rewardClaimList.get(index)) revert CBR__RewardAlreadyClaimed();
 
         // Verify the Merkle proof
-        _verifyProof(proof, index, amount, toAddress);
+        _verifyProof(proof, index, amount, toAddress, tokenAddy);
 
         // Mark the reward as claimed
         rewardClaimList.set(index);
@@ -112,14 +112,15 @@ contract CBRewardDistributionModule is Ownable {
         bytes32[] memory proof,
         uint256 index,
         uint256 amount,
-        address claimant
+        address claimant,
+        address tokenAddress
     ) private view {
         bytes32 leaf = keccak256(
             bytes.concat(keccak256(abi.encode(claimant, index, amount)))
         );
 
         require(
-            MerkleProof.verify(proof, merkleRoot, leaf),
+            MerkleProof.verify(proof, tokenToMerkleRoot[tokenAddress], leaf),
             "Invalid Merkle proof"
         );
     }
@@ -151,6 +152,16 @@ contract CBRewardDistributionModule is Ownable {
         );
     }
 
+    /**
+     * @notice Updates the address of the safe.
+     * @dev This function can only be called by the owner.
+     * @param _safe The new address of the safe.
+     */
+    function updateSafe(address _safe) external onlyDelegate {
+        if (_safe == address(0)) revert CBR__InvalidAddress();
+        safe = _safe;
+    }
+
     /// @dev Checks if a reward has been claimed.
     /// @param index The index of the reward in the Merkle tree.
     /// @return True if the reward has been claimed, false otherwise.
@@ -158,6 +169,11 @@ contract CBRewardDistributionModule is Ownable {
         return rewardClaimList.get(index);
     }
 
+    /**
+     * @notice Checks the balance of the specified reward token in the contract.
+     * @param _token The address of the token to check the balance of.
+     * @return The balance of the specified token in the contract.
+     */
     function checkRewardTokenBalance(
         address _token
     ) public view returns (uint256) {
