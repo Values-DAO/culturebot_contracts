@@ -4,6 +4,8 @@ pragma solidity ^0.8.24;
 import {AggregatorV3Interface} from "chainlink-brownie-contracts/contracts/src/v0.8/shared/interfaces/AggregatorV3Interface.sol";
 import {CultureBotTokenBoilerPlate} from "src/ExponentialBC/CultureTokenBoilerPlate.sol";
 import {INonfungiblePositionManager, IUniswapV3Factory, IWETH9} from "./interface.sol";
+import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
+import "@openzeppelin/contracts/utils/structs/BitMaps.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {TickMath} from "v3-core/contracts/libraries/TickMath.sol";
 import {UD60x18, ud, exp} from "prb-math/UD60x18.sol";
@@ -14,11 +16,16 @@ import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Recei
 /// @dev Uses PRBMath for precise mathematical calculations and Chainlink for price feeds
 contract CultureBotBondingCurve is Ownable, IERC721Receiver {
     using TickMath for int24;
+    using BitMaps for BitMaps.BitMap;
+
+    // Bitmap to track claimed rewards
+    BitMaps.BitMap private rewardClaimList;
 
     /// @notice Custom errors for better gas efficiency
     error CBP__InvalidLogAmount();
     error CBP__IncorrectCostValue();
     error CBP__InvalidTokenAddress();
+    error CBR__RewardAlreadyClaimed();
     error CBP__SupplyCapExceededAlready();
     error CBP__BondingCurveYetToGraduate();
     error CBP__InsufficientAvailableSupply();
@@ -70,6 +77,13 @@ contract CultureBotBondingCurve is Ownable, IERC721Receiver {
         address indexed token,
         address indexed weth,
         uint256 positionId
+    );
+
+    // Events
+    event RewardClaimed(
+        address indexed claimant,
+        uint256 index,
+        uint256 amount
     );
 
     constructor(
@@ -260,6 +274,68 @@ contract CultureBotBondingCurve is Ownable, IERC721Receiver {
             (uint256(ethPrice) / PRICE_PRECISION);
 
         return ((purchaseAmountInUsd * DECIMALS) / costInUsdPerCoin);
+    }
+
+    /// @dev Allows users to claim their rewards.
+    /// @param index The index of the reward in the Merkle tree.
+    /// @param amount The amount of tokens to claim.
+    /// @param toAddress The address to transfer the tokens to.
+    /// @param proof The Merkle proof for the claim.
+    /// @param merkleRoot The Merkle root.
+    function claimRewards(
+        uint256 index,
+        uint256 amount,
+        address toAddress,
+        bytes32[] calldata proof,
+        bytes32 merkleRoot
+    ) external onlyOwner {
+        // Ensure the reward has not been claimed
+        if (rewardClaimList.get(index)) revert CBR__RewardAlreadyClaimed();
+
+        // Verify the Merkle proof
+        _verifyProof(index, amount, toAddress, merkleRoot, proof);
+
+        // Mark the reward as claimed
+        rewardClaimList.set(index);
+
+        // Transfer the tokens to the claimant
+        _transferTokens(toAddress, amount);
+
+        // Emit an event
+        emit RewardClaimed(toAddress, index, amount);
+    }
+
+    /// @dev Internal function to verify the Merkle proof.
+    /// @param index The index of the reward in the Merkle tree.
+    /// @param amount The amount of tokens to claim.
+    /// @param claimant The address of the claimant.
+    /// @param merkleRoot The Merkle root.
+    /// @param proof The Merkle proof.
+    function _verifyProof(
+        uint256 index,
+        uint256 amount,
+        address claimant,
+        bytes32 merkleRoot,
+        bytes32[] memory proof
+    ) private pure {
+        bytes32 leaf = keccak256(
+            bytes.concat(keccak256(abi.encode(claimant, index, amount)))
+        );
+
+        require(
+            MerkleProof.verify(proof, merkleRoot, leaf),
+            "Invalid Merkle proof"
+        );
+    }
+
+    /// @dev Internal function to transfer tokens from the Safe to the claimant.
+    /// @param to The address to transfer tokens to.
+    /// @param amount The amount of tokens to transfer.
+    function _transferTokens(address to, uint256 amount) private {
+        CultureBotTokenBoilerPlate(communityCoinDeets.tokenAddress).transfer(
+            to,
+            amount
+        );
     }
 
     /// @notice Calculate the maximum usable tick for Uniswap V3 pool

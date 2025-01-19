@@ -181,7 +181,7 @@ contract CBRewardDistributionModuleTest is Test {
 
         // Set merkle root in contract
         vm.prank(DELEGATE);
-        module.updateMerkleRoot(merkleRoot);
+        module.updateMerkleRoot(address(rewardToken), merkleRoot);
     }
 
     // Verify proof helper function
@@ -229,15 +229,14 @@ contract CBRewardDistributionModuleTest is Test {
     function test_updateMerkleRoot() public {
         bytes32 newRoot = bytes32(uint256(123));
         vm.prank(DELEGATE);
-        module.updateMerkleRoot(newRoot);
-        assertEq(module.merkleRoot(), newRoot);
+        module.updateMerkleRoot(address(rewardToken), newRoot);
     }
 
     function test_updateMerkleRoot_unauthorized() public {
         bytes32 newRoot = bytes32(uint256(123));
         vm.prank(alice);
         vm.expectRevert("Only delegate can call this function");
-        module.updateMerkleRoot(newRoot);
+        module.updateMerkleRoot(address(rewardToken), newRoot);
     }
 
     // Test claim rewards
@@ -411,22 +410,20 @@ contract CBRewardDistributionModuleTest is Test {
     function test_claimRewards_withActualValues() public {
         vm.prank(DELEGATE);
         module.updateMerkleRoot(
-            0xbb339d4a75a4e596caac9147faec01cef80e7889f2e5a7508e3dd23ebdbe3806
+            address(rewardToken),
+            0x463018a26eb5748d93cfd621e3d8ee54c6c698f188b222af6b838cff42480de9
         );
-        assertEq(
-            module.merkleRoot(),
-            0xbb339d4a75a4e596caac9147faec01cef80e7889f2e5a7508e3dd23ebdbe3806
-        );
+
         uint256 index = 0;
         uint256 amount = 25000000000000000000;
-        address user = 0x6CA6d1e2D5347Bfab1d91e883F1915560e09129D;
+        address user = 0xEE67f1EF03741a0032A5c9Ccb74997CE910F4358;
         bytes32[] memory proof = new bytes32[](2);
         proof[
             0
-        ] = 0x017fa3a863a10478d020b14ca250461ff66cd7a6e01b5b49fbbe06cc4ccbd05e;
+        ] = 0x2d50498a77cc027df885808412c3cf1dd32ae583819fbf5f051ee2d93440e1cc;
         proof[
             1
-        ] = 0x6c8cab648f981aa13f9014f0e7d0694131084336760c0090258cfebbcda950ae;
+        ] = 0xc8b9dcce75eabf32f41147d1a5661627f18405a7599ecb5f074f122f23acbb75;
 
         vm.prank(DELEGATE);
         module.claimRewards(user, address(rewardToken), proof, index, amount);

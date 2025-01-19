@@ -40,14 +40,14 @@ ifeq ($(findstring --network ethereum,$(ARGS)),--network ethereum)
 endif
 
 deploy:
-	@forge script script/DeployCultureBotFactory.s.sol:DeployCultureBotFactory $(NETWORK_ARGS)
+	@forge script script/DeployCBRewardDistributionModule.s.sol:DeployCBRewardDistributionModule $(NETWORK_ARGS)
 #@forge script script/DeployCultureBotTokenBoilerPlate.s.sol:DeployCultureBotToken $(NETWORK_ARGS)
 
 
 
 
 verify:
-	@forge verify-contract --chain-id 84532 --watch  --etherscan-api-key $(ETHERSCAN_API_KEY) --compiler-version 0.8.27 0x9e3b27C397948b56E93878b05C6106CB22144677 src/ExponentialBC/CultureBotFactory.sol:CultureBotFactory
+	@forge verify-contract --chain-id 84532 --watch --constructor-args `cast abi-encode "constructor(address)" "$(SAFE_ADDRESS)" `  --etherscan-api-key $(ETHERSCAN_API_KEY) --compiler-version 0.8.27 0x43a11F1bF8036B5564F81A29357a14D5E01E9269 src/ExponentialBC/CBRewardDistributionModule.sol:CBRewardDistributionModule
 #@forge verify-contract --chain-id 84532 --watch --constructor-args `cast abi-encode "constructor(string,string,uint256,address[3],uint256[3],address)" "$(NAME)" "$(SYMBOL)" "$(MAX_SUPPLY)" "[$(ALLOCATION_ADDY1),$(ALLOCATION_ADDY2),$(ALLOCATION_ADDY3)]" "[$(ALLOCATIONAMOUNT1),$(ALLOCATIONAMOUNT2),$(ALLOCATIONAMOUNT3)]" "$(FACTORY)"` --etherscan-api-key $(ETHERSCAN_API_KEY) --compiler-version 0.8.24 0xe2A1A3c40dFE8e29e00f25f50C113FF9b06ac912 src/CultureBotTokenBoilerPlate.sol:CultureBotTokenBoilerPlate
 	
 
