@@ -67,6 +67,7 @@ contract CultureBotBondingCurveTest is Test {
             "TestMemeCoin",
             "TMC",
             "Test Meme Coin Description",
+            deployer,
             allocAddrs,
             allocAmounts
         );
@@ -88,6 +89,7 @@ contract CultureBotBondingCurveTest is Test {
             "TestMemeCoin2",
             "TMC",
             "Test Meme Coin Description",
+            deployer,
             allocAddrs,
             allocAmounts
         );
@@ -464,6 +466,16 @@ contract CultureBotBondingCurveTest is Test {
         emit log_named_uint("Gas Used", gasUsed);
 
         vm.stopPrank();
+    }
+
+    function test_update_admin() public {
+        vm.prank(deployer);
+        bondingCurve.updateAdmin(owner);
+    }
+
+    function test_revert_if_non_admin() public {
+        vm.expectRevert();
+        bondingCurve.updateAdmin(owner);
     }
 
     function test_claimRewards_withActualValuess() public {

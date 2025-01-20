@@ -39,6 +39,7 @@ contract CultureBotFactory {
     /// @param name Token name
     /// @param symbol Token symbol
     /// @param description Token description
+    /// @param adminAddress Address of the bonding curve admin
     /// @param allocationAddys Array of addresses for initial token allocation
     /// @param allocationAmount Array of amounts for initial token allocation
     /// @return tokenAddress Address of the deployed token contract
@@ -47,6 +48,7 @@ contract CultureBotFactory {
         string calldata name,
         string calldata symbol,
         string calldata description,
+        address adminAddress,
         address[] calldata allocationAddys,
         uint256[] calldata allocationAmount
     )
@@ -75,9 +77,9 @@ contract CultureBotFactory {
             name,
             symbol,
             description,
-            0, // Initial funding raised
             address(token),
-            msg.sender
+            msg.sender,
+            adminAddress
         );
 
         // Setup token permissions and mint bonding curve supply

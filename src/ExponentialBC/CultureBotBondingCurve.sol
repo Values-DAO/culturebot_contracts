@@ -1,20 +1,20 @@
 //SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import {AggregatorV3Interface} from "chainlink-brownie-contracts/contracts/src/v0.8/shared/interfaces/AggregatorV3Interface.sol";
-import {CultureBotTokenBoilerPlate} from "src/ExponentialBC/CultureTokenBoilerPlate.sol";
-import {INonfungiblePositionManager, IUniswapV3Factory, IWETH9} from "./interface.sol";
-import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
-import "@openzeppelin/contracts/utils/structs/BitMaps.sol";
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {TickMath} from "v3-core/contracts/libraries/TickMath.sol";
 import {UD60x18, ud, exp} from "prb-math/UD60x18.sol";
+import {TickMath} from "v3-core/contracts/libraries/TickMath.sol";
+import {BitMaps} from "@openzeppelin/contracts/utils/structs/BitMaps.sol";
+import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
+import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
+import {INonfungiblePositionManager, IUniswapV3Factory, IWETH9} from "./interface.sol";
+import {CultureBotTokenBoilerPlate} from "src/ExponentialBC/CultureTokenBoilerPlate.sol";
 import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
+import {AggregatorV3Interface} from "chainlink-brownie-contracts/contracts/src/v0.8/shared/interfaces/AggregatorV3Interface.sol";
 
 /// @title CultureBot Bonding Curve
 /// @notice Implements an exponential bonding curve with Uniswap V3 liquidity provision and this is not a complete implementation
 /// @dev Uses PRBMath for precise mathematical calculations and Chainlink for price feeds
-contract CultureBotBondingCurve is Ownable, IERC721Receiver {
+contract CultureBotBondingCurve is IERC721Receiver, AccessControl {
     using TickMath for int24;
     using BitMaps for BitMaps.BitMap;
 
@@ -90,10 +90,10 @@ contract CultureBotBondingCurve is Ownable, IERC721Receiver {
         string memory name,
         string memory symbol,
         string memory description,
-        uint96 fundingRaised,
         address tokenAddress,
-        address creatorAddress
-    ) Ownable(msg.sender) {
+        address creatorAddress,
+        address _adminAddress
+    ) {
         communityCoinDeets = CommunityCoinDeets({
             name: name,
             symbol: symbol,
@@ -101,9 +101,11 @@ contract CultureBotBondingCurve is Ownable, IERC721Receiver {
             description: description,
             tokenAddress: tokenAddress,
             creatorAddress: creatorAddress,
-            fundingRaised: fundingRaised
+            fundingRaised: uint256(0)
         });
         v3Interface = AggregatorV3Interface(BASE_ETH_PRICEFEED);
+
+        _grantRole(DEFAULT_ADMIN_ROLE, _adminAddress);
     }
 
     /// @notice Purchase tokens using the bonding curve
@@ -161,7 +163,7 @@ contract CultureBotBondingCurve is Ownable, IERC721Receiver {
         int24 tickSpacing,
         address _positionManager,
         address poolfactory
-    ) external onlyOwner returns (uint256 positionId) {
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) returns (uint256 positionId) {
         CommunityCoinDeets storage listedToken = communityCoinDeets;
         if (!listedToken.isGraduated) revert CBP__BondingCurveYetToGraduate();
         (address token0, address token1) = newToken < wethAddress
@@ -288,7 +290,7 @@ contract CultureBotBondingCurve is Ownable, IERC721Receiver {
         address toAddress,
         bytes32[] calldata proof,
         bytes32 merkleRoot
-    ) external onlyOwner {
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
         // Ensure the reward has not been claimed
         if (rewardClaimList.get(index)) revert CBR__RewardAlreadyClaimed();
 
@@ -303,6 +305,15 @@ contract CultureBotBondingCurve is Ownable, IERC721Receiver {
 
         // Emit an event
         emit RewardClaimed(toAddress, index, amount);
+    }
+
+    /// @dev external function to update the admin address
+    /// @param _adminAddress The address of the new admin
+    function updateAdmin(
+        address _adminAddress
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        _revokeRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        _grantRole(DEFAULT_ADMIN_ROLE, _adminAddress);
     }
 
     /// @dev Internal function to verify the Merkle proof.
