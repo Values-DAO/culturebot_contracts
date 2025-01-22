@@ -3,7 +3,6 @@ pragma solidity ^0.8.24;
 
 import {UD60x18, ud, exp} from "prb-math/UD60x18.sol";
 import {TickMath} from "v3-core/contracts/libraries/TickMath.sol";
-import {BitMaps} from "@openzeppelin/contracts/utils/structs/BitMaps.sol";
 import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import {INonfungiblePositionManager, IUniswapV3Factory, IWETH9} from "./interface.sol";
@@ -16,10 +15,6 @@ import {AggregatorV3Interface} from "chainlink-brownie-contracts/contracts/src/v
 /// @dev Uses PRBMath for precise mathematical calculations and Chainlink for price feeds
 contract CultureBotBondingCurve is IERC721Receiver, AccessControl {
     using TickMath for int24;
-    using BitMaps for BitMaps.BitMap;
-
-    // Bitmap to track claimed rewards
-    BitMaps.BitMap private rewardClaimList;
 
     /// @notice Custom errors for better gas efficiency
     error CBP__InvalidLogAmount();
@@ -49,6 +44,10 @@ contract CultureBotBondingCurve is IERC721Receiver, AccessControl {
 
     /// @notice Current active supply of tokens
     uint256 public activeSupply;
+    /// @notice Last reward campaign timestamp
+    uint256 public lastRewardCampaignTimestamp;
+    /// @notice weekly root hash
+    bytes32 private weeklyRootTimestampHash;
 
     /// @notice Constants used throughout the contract
     /// @dev All constants are immutable and most are private for gas optimization
@@ -62,6 +61,10 @@ contract CultureBotBondingCurve is IERC721Receiver, AccessControl {
     uint128 private constant PRICE_PRECISION = 1e8;
     uint256 private constant INITIAL_PRICE_IN_ETH = 0.000000000024269 ether;
     uint256 private constant K = 69420 * DECIMALS;
+    uint256 private constant ROOT_AND_HASH_UPDATE_INTERVAL = 7 days;
+
+    /// @notice mapping to keep track of weekly rewards claimed
+    mapping(bytes32 => mapping(address => bool)) public weeklyRewardClaimed;
 
     /// @notice Events for better transparency and off-chain tracking
     event TokensPurchased(
@@ -78,13 +81,8 @@ contract CultureBotBondingCurve is IERC721Receiver, AccessControl {
         address indexed weth,
         uint256 positionId
     );
-
-    // Events
-    event RewardClaimed(
-        address indexed claimant,
-        uint256 index,
-        uint256 amount
-    );
+    event RewardDistributed(address indexed claimant, uint256 amount);
+    event WeeklyRootUpdated(bytes32 newRoot, uint256 timestamp);
 
     constructor(
         string memory name,
@@ -103,6 +101,7 @@ contract CultureBotBondingCurve is IERC721Receiver, AccessControl {
             creatorAddress: creatorAddress,
             fundingRaised: uint256(0)
         });
+        lastRewardCampaignTimestamp = block.timestamp;
         v3Interface = AggregatorV3Interface(BASE_ETH_PRICEFEED);
 
         _grantRole(DEFAULT_ADMIN_ROLE, _adminAddress);
@@ -279,32 +278,36 @@ contract CultureBotBondingCurve is IERC721Receiver, AccessControl {
     }
 
     /// @dev Allows users to claim their rewards.
-    /// @param index The index of the reward in the Merkle tree.
     /// @param amount The amount of tokens to claim.
     /// @param toAddress The address to transfer the tokens to.
     /// @param proof The Merkle proof for the claim.
     /// @param merkleRoot The Merkle root.
-    function claimRewards(
-        uint256 index,
+    function distributeRewards(
         uint256 amount,
         address toAddress,
         bytes32[] calldata proof,
         bytes32 merkleRoot
     ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (
+            block.timestamp - lastRewardCampaignTimestamp >=
+            ROOT_AND_HASH_UPDATE_INTERVAL
+        ) {
+            updateWeeklyRootAndHash(merkleRoot);
+        }
         // Ensure the reward has not been claimed
-        if (rewardClaimList.get(index)) revert CBR__RewardAlreadyClaimed();
+        if (weeklyRewardClaimed[weeklyRootTimestampHash][toAddress])
+            revert CBR__RewardAlreadyClaimed();
 
         // Verify the Merkle proof
-        _verifyProof(index, amount, toAddress, merkleRoot, proof);
+        _verifyProof(amount, toAddress, merkleRoot, proof);
 
-        // Mark the reward as claimed
-        rewardClaimList.set(index);
+        // Emit an event
+        emit RewardDistributed(toAddress, amount);
+
+        weeklyRewardClaimed[weeklyRootTimestampHash][toAddress] = true;
 
         // Transfer the tokens to the claimant
         _transferTokens(toAddress, amount);
-
-        // Emit an event
-        emit RewardClaimed(toAddress, index, amount);
     }
 
     /// @dev external function to update the admin address
@@ -316,21 +319,31 @@ contract CultureBotBondingCurve is IERC721Receiver, AccessControl {
         _grantRole(DEFAULT_ADMIN_ROLE, _adminAddress);
     }
 
+    /// @dev external function to update the weekly root and hash
+    /// @param newRoot The new root to update§
+    function updateWeeklyRootAndHash(
+        bytes32 newRoot
+    ) private onlyRole(DEFAULT_ADMIN_ROLE) {
+        emit WeeklyRootUpdated(newRoot, block.timestamp);
+        lastRewardCampaignTimestamp = block.timestamp;
+        weeklyRootTimestampHash = keccak256(
+            abi.encodePacked(newRoot, block.timestamp)
+        );
+    }
+
     /// @dev Internal function to verify the Merkle proof.
-    /// @param index The index of the reward in the Merkle tree.
     /// @param amount The amount of tokens to claim.
     /// @param claimant The address of the claimant.
     /// @param merkleRoot The Merkle root.
     /// @param proof The Merkle proof.
     function _verifyProof(
-        uint256 index,
         uint256 amount,
         address claimant,
         bytes32 merkleRoot,
         bytes32[] memory proof
     ) private pure {
         bytes32 leaf = keccak256(
-            bytes.concat(keccak256(abi.encode(claimant, index, amount)))
+            bytes.concat(keccak256(abi.encode(claimant, amount)))
         );
 
         require(
@@ -407,5 +420,15 @@ contract CultureBotBondingCurve is IERC721Receiver, AccessControl {
     /// @return Current price according to the bonding curve
     function getCurrentPrice() external view returns (uint256) {
         return calculateCost(1);
+    }
+
+    /**
+     * @notice Checks the balance of the token in the contract.
+     * @return The balance of the specified token in the contract.
+     */
+    function checkRewardTokenBalance() public view returns (uint256) {
+        return
+            CultureBotTokenBoilerPlate(communityCoinDeets.tokenAddress)
+                .balanceOf(address(this));
     }
 }
