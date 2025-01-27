@@ -478,12 +478,6 @@ contract CultureBotBondingCurveTest is Test {
         bondingCurve.updateAdmin(owner);
     }
 
-    function test_update_weekly_root() public {
-        bytes32 merkleRoot = 0xaa5d581231e596618465a56aa0f5870ba6e20785fe436d5bfb82b08662ccc7c4;
-        vm.prank(deployer);
-        bondingCurve.updateWeeklyRootAndHash(merkleRoot);
-    }
-
     function test_claimRewards_withActualValuess() public {
         uint256 amount = 25000000000000000000;
         address user = 0x6CA6d1e2D5347Bfab1d91e883F1915560e09129D;
@@ -496,11 +490,23 @@ contract CultureBotBondingCurveTest is Test {
             1
         ] = 0xe5ebd1e1b5a5478a944ecab36a9a954ac3b6b8216875f6524caa7a1d87096576;
 
-        vm.prank(deployer);
-        bondingCurve.updateWeeklyRootAndHash(merkleRoot);
+        vm.prank(address(deployer));
+        bondingCurve.distributeRewards(amount, user, proof, merkleRoot);
+
+        skip(7 days);
+
+        uint256 amount2 = 26000000000000000000;
+        bytes32 merkleRoot2 = 0x4d54c863cc9916785c86bb6626111aa9fd930bd5f3e6c0fe9e448c70d08ca929;
+        bytes32[] memory proof2 = new bytes32[](2);
+        proof2[
+            0
+        ] = 0x84ea7338729b2635a26387c956edfd8f267fc0316e562c70ce568a1fd47d521f;
+        proof2[
+            1
+        ] = 0x3ffb462c3ca66aa100d72e10dc4bb62c853a72b1bd08b137468bd4d5039a99ad;
 
         vm.prank(address(deployer));
-        bondingCurve.claimRewards(amount, user, proof, merkleRoot);
+        bondingCurve.distributeRewards(amount2, user, proof2, merkleRoot2);
 
         //uint256 index, uint256 amount, address toAddress, bytes32[] calldata proof, bytes32 merkleRoot
     }
