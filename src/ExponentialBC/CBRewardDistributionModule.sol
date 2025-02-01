@@ -4,9 +4,8 @@ pragma solidity ^0.8.24;
 
 import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 
-import "@openzeppelin/contracts/utils/structs/BitMaps.sol";
 import "./Enum.sol";
 
 interface ISafe {
@@ -18,15 +17,10 @@ interface ISafe {
     ) external returns (bool success);
 }
 
-contract CBRewardDistributionModule is Ownable {
-    using BitMaps for BitMaps.BitMap;
-
+contract CBRewardDistributionModule is AccessControl {
     error CBR__OnlySafe();
     error CBR__InvalidAddress();
     error CBR__RewardAlreadyClaimed();
-
-    // Bitmap to track claimed rewards
-    BitMaps.BitMap private rewardClaimList;
 
     // Safe address
     address public safe;
@@ -34,15 +28,29 @@ contract CBRewardDistributionModule is Ownable {
     // Delegate address (optional, for updating Merkle root)
     address public delegate;
 
+    /// @notice Last reward campaign timestamp
+    uint256 public lastRewardCampaignTimestamp;
+    /// @notice weekly root hash
+    bytes32 private weeklyRootTimestampHash;
+
+    uint256 private constant ROOT_AND_HASH_UPDATE_INTERVAL = 7 days;
+
+    mapping(address => mapping(bytes32 => mapping(address => bool)))
+        public weeklyRewardClaimed;
+
     mapping(address tokenAddy => bytes32 merkleRoot) public tokenToMerkleRoot;
 
     // Events
-    event RewardClaimed(
+    event WeeklyRootUpdated(
+        address tokenAddy,
+        bytes32 newRoot,
+        uint256 timestamp
+    );
+    event RewardDistributed(
         address indexed claimant,
-        uint256 index,
+        address tokenAddress,
         uint256 amount
     );
-    event MerkleRootUpdated(bytes32 newMerkleRoot, address tokenAddress);
     event DelegateUpdated(address newDelegate);
 
     // Modifier to restrict access to the delegate
@@ -52,9 +60,11 @@ contract CBRewardDistributionModule is Ownable {
     }
 
     // Constructor to initialize the module with the Safe address
-    constructor(address _safe) Ownable(msg.sender) {
+    constructor(address _safe) {
         if (_safe == address(0)) revert CBR__InvalidAddress();
         safe = _safe;
+
+        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
     }
 
     /// @dev Allows the Safe to set or update the delegate address.
@@ -64,63 +74,70 @@ contract CBRewardDistributionModule is Ownable {
         emit DelegateUpdated(_delegate);
     }
 
-    /// @dev Allows the delegate to update the Merkle root for reward distribution.
-    /// @param _merkleRoot The new Merkle root.
-    /// @param tokenAddress The address of the corresponding token.
-    function updateMerkleRoot(
-        address tokenAddress,
-        bytes32 _merkleRoot
-    ) external onlyDelegate {
-        tokenToMerkleRoot[tokenAddress] = _merkleRoot;
-
-        emit MerkleRootUpdated(_merkleRoot, tokenAddress);
+    /// @dev external function to update the weekly root and hash
+    /// @param newRoot The new root to update§
+    function updateWeeklyRootAndHash(
+        address tokenAddy,
+        bytes32 newRoot
+    ) private {
+        emit WeeklyRootUpdated(tokenAddy, newRoot, block.timestamp);
+        lastRewardCampaignTimestamp = block.timestamp;
+        weeklyRootTimestampHash = keccak256(
+            abi.encodePacked(newRoot, block.timestamp)
+        );
     }
 
     /// @dev Allows users to claim their rewards.
     /// @param proof The Merkle proof for the claim.
-    /// @param index The index of the reward in the Merkle tree.
+    /// @param merkleRoot The Merkle root for the claim.
     /// @param amount The amount of tokens to claim.
-    function claimRewards(
+    function distributeRewards(
         address toAddress,
         address tokenAddy,
         bytes32[] calldata proof,
-        uint256 index,
+        bytes32 merkleRoot,
         uint256 amount
-    ) external onlyDelegate {
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (
+            block.timestamp - lastRewardCampaignTimestamp >=
+            ROOT_AND_HASH_UPDATE_INTERVAL
+        ) {
+            updateWeeklyRootAndHash(tokenAddy, merkleRoot);
+        }
         // Ensure the reward has not been claimed
-        if (rewardClaimList.get(index)) revert CBR__RewardAlreadyClaimed();
-
+        if (weeklyRewardClaimed[tokenAddy][weeklyRootTimestampHash][toAddress])
+            revert CBR__RewardAlreadyClaimed();
         // Verify the Merkle proof
-        _verifyProof(proof, index, amount, toAddress, tokenAddy);
+        _verifyProof(amount, toAddress, merkleRoot, proof);
 
-        // Mark the reward as claimed
-        rewardClaimList.set(index);
+        weeklyRewardClaimed[tokenAddy][weeklyRootTimestampHash][
+            toAddress
+        ] = true;
+
+        // Emit an event
+        emit RewardDistributed(toAddress, tokenAddy, amount);
 
         // Transfer the tokens to the claimant
         _transferTokens(tokenAddy, toAddress, amount);
-
-        // Emit an event
-        emit RewardClaimed(toAddress, index, amount);
     }
 
     /// @dev Internal function to verify the Merkle proof.
-    /// @param proof The Merkle proof.
-    /// @param index The index of the reward in the Merkle tree.
     /// @param amount The amount of tokens to claim.
     /// @param claimant The address of the claimant.
+    /// @param merkleRoot The Merkle root.
+    /// @param proof The Merkle proof.
     function _verifyProof(
-        bytes32[] memory proof,
-        uint256 index,
         uint256 amount,
         address claimant,
-        address tokenAddress
-    ) private view {
+        bytes32 merkleRoot,
+        bytes32[] memory proof
+    ) private pure {
         bytes32 leaf = keccak256(
-            bytes.concat(keccak256(abi.encode(claimant, index, amount)))
+            bytes.concat(keccak256(abi.encode(claimant, amount)))
         );
 
         require(
-            MerkleProof.verify(proof, tokenToMerkleRoot[tokenAddress], leaf),
+            MerkleProof.verify(proof, merkleRoot, leaf),
             "Invalid Merkle proof"
         );
     }
@@ -162,11 +179,17 @@ contract CBRewardDistributionModule is Ownable {
         safe = _safe;
     }
 
-    /// @dev Checks if a reward has been claimed.
-    /// @param index The index of the reward in the Merkle tree.
-    /// @return True if the reward has been claimed, false otherwise.
-    function isRewardClaimed(uint256 index) external view returns (bool) {
-        return rewardClaimList.get(index);
+    /// @notice Checks if a reward has been claimed for a specific token and address
+    /// @dev Returns the claim status from weeklyRewardClaimed mapping using current root hash
+    /// @param tokenAddy The address of the reward token
+    /// @param toAddress The address to check the claim status for
+    /// @return True if the reward has been claimed, false otherwise
+    function isRewardClaimed(
+        address tokenAddy,
+        address toAddress
+    ) external view returns (bool) {
+        return
+            weeklyRewardClaimed[tokenAddy][weeklyRootTimestampHash][toAddress];
     }
 
     /**

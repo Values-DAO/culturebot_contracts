@@ -321,9 +321,7 @@ contract CultureBotBondingCurve is IERC721Receiver, AccessControl {
 
     /// @dev external function to update the weekly root and hash
     /// @param newRoot The new root to update§
-    function updateWeeklyRootAndHash(
-        bytes32 newRoot
-    ) private onlyRole(DEFAULT_ADMIN_ROLE) {
+    function updateWeeklyRootAndHash(bytes32 newRoot) private {
         emit WeeklyRootUpdated(newRoot, block.timestamp);
         lastRewardCampaignTimestamp = block.timestamp;
         weeklyRootTimestampHash = keccak256(
