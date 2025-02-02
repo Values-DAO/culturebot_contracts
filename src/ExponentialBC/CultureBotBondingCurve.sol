@@ -101,7 +101,7 @@ contract CultureBotBondingCurve is IERC721Receiver, AccessControl {
             creatorAddress: creatorAddress,
             fundingRaised: uint256(0)
         });
-        lastRewardCampaignTimestamp = block.timestamp;
+
         v3Interface = AggregatorV3Interface(BASE_ETH_PRICEFEED);
 
         _grantRole(DEFAULT_ADMIN_ROLE, _adminAddress);
@@ -338,7 +338,7 @@ contract CultureBotBondingCurve is IERC721Receiver, AccessControl {
         uint256 amount,
         address claimant,
         bytes32 merkleRoot,
-        bytes32[] memory proof
+        bytes32[] calldata proof
     ) private pure {
         bytes32 leaf = keccak256(
             bytes.concat(keccak256(abi.encode(claimant, amount)))

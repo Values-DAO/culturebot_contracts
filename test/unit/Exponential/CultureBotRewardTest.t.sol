@@ -201,20 +201,6 @@ contract CBRewardDistributionModuleTest is Test {
         module.setDelegate(newDelegate);
     }
 
-    // // Test updateMerkleRoot
-    // function test_updateMerkleRoot() public {
-    //     bytes32 newRoot = bytes32(uint256(123));
-    //     vm.prank(DELEGATE);
-    //     module.updateMerkleRoot(address(rewardToken), newRoot);
-    // }
-
-    // function test_updateMerkleRoot_unauthorized() public {
-    //     bytes32 newRoot = bytes32(uint256(123));
-    //     vm.prank(alice);
-    //     vm.expectRevert("Only delegate can call this function");
-    //     module.updateMerkleRoot(address(rewardToken), newRoot);
-    // }
-
     // Test claim rewards
     function test_claimRewardss() public {
         Claim memory claim = claims[alice];

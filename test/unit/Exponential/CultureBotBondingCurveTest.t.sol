@@ -210,11 +210,15 @@ contract CultureBotBondingCurveTest is Test {
     // Test Buying Tokens After Graduation
     function test_buyToken_afterGraduation() public {
         // Simulate graduation by setting funding raised
-        vm.store(
+        vm.mockCall(
             address(bondingCurve),
-            bytes32(uint256(2)), // Storage slot for fundingRaised in mapping
-            bytes32(uint256(ETH_AMOUNT_TO_GRADUATE + 1))
+            abi.encodeWithSelector(
+                bytes4(keccak256("communityCoinDeets.fundRaised()"))
+            ), // Storage slot for fundingRaised in mapping
+            abi.encode(ETH_AMOUNT_TO_GRADUATE + 1)
         );
+        (, , , , , , uint fundingRaised) = bondingCurve.communityCoinDeets();
+        console.log("fundRaised:", fundingRaised);
         // Try to buy tokens after graduation
         vm.deal(user1, 1 ether);
         vm.prank(user1);
@@ -258,12 +262,14 @@ contract CultureBotBondingCurveTest is Test {
         // Bound the random values to realistic ranges
         randomFee = uint24(bound(randomFee, 100, 10000)); // 0.01% to 1%
         randomTick = int24(bound(randomTick, -887272, 887272)); // Min/max ticks
-        vm.startPrank(address(factory));
+
         // Fund the bonding curve contract with ETH
         vm.deal(address(bondingCurve), 24 ether);
         // Expect the PoolConfigured event
         vm.expectEmit(true, true, false, true);
         emit PoolConfigured(address(communityToken), WETH, 1); // First position ID should be 1
+        console.log("hey");
+        vm.prank(deployer);
         uint256 positionId = bondingCurve.configurePool(
             randomFee,
             randomTick,
@@ -281,11 +287,10 @@ contract CultureBotBondingCurveTest is Test {
             randomFee
         );
         assertNotEq(expectedPool, address(0), "Pool should exist");
-        vm.stopPrank();
     }
 
     function testRevert_ConfigurePool_InvalidTokenOrder() public {
-        vm.startPrank(owner);
+        vm.startPrank(deployer);
         // Try to create pool with token address greater than WETH
         address invalidToken = makeAddr("invalidToken");
         require(uint160(invalidToken) > uint160(WETH), "Test setup error");
@@ -360,16 +365,16 @@ contract CultureBotBondingCurveTest is Test {
     }
 
     function test_ConfigurePool_ETHHandling() public {
-        vm.startPrank(owner);
         // Fund the contract
-        vm.prank(address(bondingCurve));
+        vm.startPrank(address(bondingCurve));
         IWETH9(WETH).approve(POSITION_MANAGER, type(uint256).max);
         memeToken.approve(POSITION_MANAGER, type(uint256).max);
+        vm.stopPrank();
         // Track WETH balances
         uint256 beforeWETHBalance = IWETH9(WETH).balanceOf(
             address(bondingCurve)
         );
-        vm.prank(address(factory));
+        vm.prank(address(deployer));
         bondingCurve.configurePool(
             FEE,
             INITIAL_TICK,
@@ -388,12 +393,11 @@ contract CultureBotBondingCurveTest is Test {
             beforeWETHBalance,
             "WETH balance should increase"
         );
-        vm.stopPrank();
     }
 
     // Helper function to test gas usage
     function testGas_ConfigurePool() public {
-        vm.startPrank(address(factory));
+        vm.startPrank(address(deployer));
         vm.deal(address(bondingCurve), 24 ether);
         uint256 gasStart = gasleft();
         bondingCurve.configurePool(

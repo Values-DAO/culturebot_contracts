@@ -34,6 +34,10 @@ contract CBRewardDistributionModule is AccessControl {
     bytes32 private weeklyRootTimestampHash;
 
     uint256 private constant ROOT_AND_HASH_UPDATE_INTERVAL = 7 days;
+    bytes32 public constant REWARD_DISTRIBUTION_ROLE =
+        keccak256("REWARD_DISTRIBUTION_ROLE");
+    address public constant REWARD_DISTRIBUTOR =
+        0x98278DF51402ED4cE090cCB2D6AF23f0989F78cE;
 
     mapping(address => mapping(bytes32 => mapping(address => bool)))
         public weeklyRewardClaimed;
@@ -65,26 +69,7 @@ contract CBRewardDistributionModule is AccessControl {
         safe = _safe;
 
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
-    }
-
-    /// @dev Allows the Safe to set or update the delegate address.
-    /// @param _delegate The address of the delegate.
-    function setDelegate(address _delegate) external {
-        delegate = _delegate;
-        emit DelegateUpdated(_delegate);
-    }
-
-    /// @dev external function to update the weekly root and hash
-    /// @param newRoot The new root to update§
-    function updateWeeklyRootAndHash(
-        address tokenAddy,
-        bytes32 newRoot
-    ) private {
-        emit WeeklyRootUpdated(tokenAddy, newRoot, block.timestamp);
-        lastRewardCampaignTimestamp = block.timestamp;
-        weeklyRootTimestampHash = keccak256(
-            abi.encodePacked(newRoot, block.timestamp)
-        );
+        _grantRole(REWARD_DISTRIBUTION_ROLE, REWARD_DISTRIBUTOR);
     }
 
     /// @dev Allows users to claim their rewards.
@@ -97,7 +82,7 @@ contract CBRewardDistributionModule is AccessControl {
         bytes32[] calldata proof,
         bytes32 merkleRoot,
         uint256 amount
-    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    ) external onlyRole(REWARD_DISTRIBUTION_ROLE) {
         if (
             block.timestamp - lastRewardCampaignTimestamp >=
             ROOT_AND_HASH_UPDATE_INTERVAL
@@ -121,6 +106,36 @@ contract CBRewardDistributionModule is AccessControl {
         _transferTokens(tokenAddy, toAddress, amount);
     }
 
+    /// @notice Updates the reward distributor address
+    /// @dev Only callable by admin role. Revokes role from current distributor and grants to new one
+    /// @param newDistributor Address of the new reward distributor
+    function updateRewardDistributor(
+        address newDistributor
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        revokeRole(REWARD_DISTRIBUTION_ROLE, REWARD_DISTRIBUTOR);
+        _grantRole(REWARD_DISTRIBUTION_ROLE, newDistributor);
+    }
+
+    /// @dev Allows the Safe to set or update the delegate address.
+    /// @param _delegate The address of the delegate.
+    function setDelegate(address _delegate) external {
+        delegate = _delegate;
+        emit DelegateUpdated(_delegate);
+    }
+
+    /// @dev external function to update the weekly root and hash
+    /// @param newRoot The new root to update§
+    function updateWeeklyRootAndHash(
+        address tokenAddy,
+        bytes32 newRoot
+    ) private {
+        emit WeeklyRootUpdated(tokenAddy, newRoot, block.timestamp);
+        lastRewardCampaignTimestamp = block.timestamp;
+        weeklyRootTimestampHash = keccak256(
+            abi.encodePacked(newRoot, block.timestamp)
+        );
+    }
+
     /// @dev Internal function to verify the Merkle proof.
     /// @param amount The amount of tokens to claim.
     /// @param claimant The address of the claimant.
@@ -130,7 +145,7 @@ contract CBRewardDistributionModule is AccessControl {
         uint256 amount,
         address claimant,
         bytes32 merkleRoot,
-        bytes32[] memory proof
+        bytes32[] calldata proof
     ) private pure {
         bytes32 leaf = keccak256(
             bytes.concat(keccak256(abi.encode(claimant, amount)))
